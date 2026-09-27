@@ -39,14 +39,18 @@ FAILED=0
 
 if [ -z "${SKIP_UNIT:-}" ]; then
   echo "=== 单测（引擎纯逻辑，无浏览器）==="
-  # 报告器必须显式指定：stdout 不是 tty 时 node 22 自己切去 tap（"# tests"/"not ok"），
-  # 而 node 26 仍旧给 spec（"ℹ tests"/"✖"）—— 于是下面这些 grep 在 CI 上一条都不命中，
-  # 红了却看不出是哪条。钉死 spec 让两边格式一致。
-  node --test --test-reporter=spec test/ > /tmp/nikoli-unit.log 2>&1 || FAILED=1
+  # 两件事都必须钉死，否则 CI 上"跑过单测"是假的：
+  #   1) 报告器 —— stdout 不是 tty 时 node 22 自己切 tap（"# tests"/"not ok"），本机
+  #      node 26 仍旧 spec（"ℹ tests"/"✖"），下面这些 grep 在 CI 上一条都不命中；
+  #   2) 参数 —— 把目录交给 node 22 的 test runner，它只报出一条名为 "test" 的失败
+  #      （tests 1 / fail 1），十个文件一个没跑。改成 shell 展开的文件列表，两边同一组题。
+  node --test --test-reporter=spec test/*.test.mjs > /tmp/nikoli-unit.log 2>&1 || FAILED=1
   tail -14 /tmp/nikoli-unit.log
   grep -E "^ℹ (tests|pass|fail)" /tmp/nikoli-unit.log | while read -r l; do note notice "unit $l"; done
   grep -E "^✖" /tmp/nikoli-unit.log | head -12 | while read -r l; do note error "unit $l"; done
-  [ $FAILED -eq 0 ] || sed -n '/^✖ /,+28p' /tmp/nikoli-unit.log | head -60
+  if [ $FAILED -ne 0 ]; then
+    note error "unit 正文 $(sed -n '/^✖ /,+22p' /tmp/nikoli-unit.log | head -40 | tr -d '\r\n' | cut -c1-420)"
+  fi
 fi
 
 echo "=== 静态服 :$SPORT ==="
