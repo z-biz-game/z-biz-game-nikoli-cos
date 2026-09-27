@@ -22,6 +22,7 @@ const PLAN = [
   { kind: 'pegsolitaire', size: 25 },
   { kind: 'nurikabe', size: 7 },
   { kind: 'tents', size: 6 },
+  { kind: 'akabane', size: 6 },
 ].filter((p) => !process.env.KINDS || process.env.KINDS.split(',').includes(p.kind));
 
 // ---- 页面侧：状态读取与"该怎么点" ------------------------------------------------
@@ -72,6 +73,17 @@ window.__t = {
       const m = await import(new URL('js/puzzles/lightsout.js', location.href).href);
       const n = spec.n;
       return { steps: m.minSolution(Uint8Array.from(spec.board), n).map((i) => ({ mode: 'tap', cells: [[i % n, (i - (i % n)) / n]] })) };
+    }
+    if (kind === 'akabane') {
+      // 空格点一下涂黑、再点涂白：按答案要的颜色决定点几下
+      const steps = [];
+      for (let i = 0; i < spec.n * spec.n; i++) {
+        if (spec.clues[i]) continue;
+        const cell = [i % spec.n, (i - i % spec.n) / spec.n];
+        steps.push({ mode: 'tap', cells: [cell] });
+        if (spec.solution[i] === 2) steps.push({ mode: 'tap', cells: [cell] });
+      }
+      return { steps, total: spec.par };
     }
     if (kind === 'tents') {
       return { steps: spec.tents.map(([x, y]) => ({ mode: 'tap', cells: [[x, y]] })), total: spec.par };
