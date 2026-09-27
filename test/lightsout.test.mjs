@@ -115,13 +115,13 @@ test('minSolution 的步数 == 暴力最小按压数', () => {
   }
 });
 
-test('5×5 经典盘：暴力在可接受时间内确认最短解', () => {
+test('5×5 经典盘：GF(2) 消元与 2^25 暴力对照给出同一个最短解', () => {
   const n = 5;
   const board = boardFromPresses(n, [0, 6, 12, 18, 24, 2, 8]);
-  const t0 = Date.now();
   const mine = minSolution(board, n);
+  // 暴力那份是固定 2^25 次枚举，工作量与机器无关，所以不再拿墙钟当断言：
+  // 慢机器上它只是慢，不是错 —— 把"跑得完"说成"算得对"是假信号。
   assert.equal(mine.length, bruteMin(board, n));
-  assert.ok(Date.now() - t0 < 120_000, '暴力对照应当跑得完');
 });
 
 test('降秩给的多解：5×5 每个可解盘面恰有 4 个解，4×4 恰有 16 个', () => {
