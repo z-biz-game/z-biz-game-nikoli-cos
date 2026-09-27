@@ -10,6 +10,13 @@ set -u
 # pipefail 是这条脚本自己的命门：`node --test test/ | tail -14` 在 bash 里取的是 tail 的
 # 退出码，单测全红也会一路往下跑，最后报 ALL GREEN。
 set -o pipefail
+
+# 失败必须从"退出码 1"变成"哪一条红了"。GitHub 的 job 日志对只有 contents 权限的
+# token 是 403（要 admin），而 .playtest/ 在 .gitignore 里，upload-artifact 从来没把
+# 截图传上来过 —— 于是 CI 一红就只能靠猜。workflow 命令打的注解走 check-run
+# annotations 那条路，读得到，所以把结论写在那里。
+note() { printf '::%s::%s\n' "$1" "$(printf '%s' "$2" | tr -d '\r\n' | cut -c1-500)"; }
+
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 CDP=${CDP_PORT:-9335}
 # 5173 在本机常被别的项目的 dev server 占着，绑失败会静默对旧端口做测试，所以默认另起。
@@ -24,14 +31,18 @@ if [ -z "$CHROME" ]; then
     if command -v "$c" >/dev/null 2>&1 || [ -x "$c" ]; then CHROME=$c; break; fi
   done
 fi
-[ -x "$CHROME" ] || { echo "找不到 Chrome，请设 CHROME_BIN" >&2; exit 2; }
+[ -x "$CHROME" ] || { note error "找不到 Chrome（试过 google-chrome / chromium / chromium-browser）"; echo "找不到 Chrome，请设 CHROME_BIN" >&2; exit 2; }
+note notice "Chrome=$CHROME node=$(node -v) cores=$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 
 cd "$HERE"
 FAILED=0
 
 if [ -z "${SKIP_UNIT:-}" ]; then
   echo "=== 单测（引擎纯逻辑，无浏览器）==="
-  node --test test/ | tail -14 || FAILED=1
+  node --test test/ > /tmp/nikoli-unit.log 2>&1 || FAILED=1
+  tail -14 /tmp/nikoli-unit.log
+  grep -E "^ℹ (tests|pass|fail)" /tmp/nikoli-unit.log | while read -r l; do note notice "unit $l"; done
+  grep -E "^✖" /tmp/nikoli-unit.log | head -12 | while read -r l; do note error "unit $l"; done
 fi
 
 echo "=== 静态服 :$SPORT ==="
@@ -53,13 +64,25 @@ for i in $(seq 1 40); do
   curl -fsS -m 1 "$BASE" >/dev/null 2>&1 && break
   sleep 0.25
 done
-curl -fsS -m 2 "$BASE" >/dev/null 2>&1 || { echo "静态服没起来：$(cat /tmp/nikoli-serve.log)" >&2; exit 3; }
+curl -fsS -m 2 "$BASE" >/dev/null 2>&1 || { note error "静态服没起来（:$SPORT）$(tail -3 /tmp/nikoli-serve.log | tr -d '\r\n')"; echo "静态服没起来：$(cat /tmp/nikoli-serve.log)" >&2; exit 3; }
+# 光"端口有人应答"不够：本机同时跑着一堆别的会话的 dev server，绑不上端口时它们会替我们
+# 把 curl 答了，于是整套无头复验其实是在别人的站上找 window.nikoli —— 报出来的却是"页面没起来"。
+# 所以按标题认一句"这是本站"，认不出就换 SPORT 重来，绝不拿别人的页面当证据。
+PAGE_HTML=$(curl -fsS -m 3 "$BASE" 2>/dev/null || true)
+printf '%s' "$PAGE_HTML" | grep -q "纸上逻辑 Nikoli" || {
+  note error ":$SPORT 上服务着的不是本站（HTML 里没有『纸上逻辑 Nikoli』）—— 换个 SPORT 再跑"
+  echo "$SPORT 端口上是别人的页面：$(printf '%s' "$PAGE_HTML" | head -c 200)" >&2
+  exit 4; }
+[ -s /tmp/nikoli-serve.log ] && grep -qi "EADDRINUSE\|address already in use" /tmp/nikoli-serve.log && {
+  note error "静态服其实没绑上 :$SPORT（EADDRINUSE），答话的是别家进程"; exit 4; }
+
 # 全新 --user-data-dir 绑定 DevTools 比热档慢，等端点而不是猜 sleep。
 for i in $(seq 1 60); do
   curl -fsS -m 1 "http://127.0.0.1:$CDP/json/version" >/dev/null 2>&1 && break
   sleep 0.5
 done
 curl -fsS -m 2 "http://127.0.0.1:$CDP/json/version" >/dev/null 2>&1 || {
+  note error "DevTools 没在 :$CDP 上监听 $(tail -4 /tmp/nikoli-chrome.log | tr -d '\r\n')"
   echo "DevTools 没在 :$CDP 上监听" >&2; exit 3; }
 
 echo "=== 无头通关（真指针事件）==="
@@ -67,18 +90,29 @@ mkdir -p "$SHOTS"
 CDP_PORT=$CDP BASE_URL=$BASE SHOT_DIR=$SHOTS node tools/playtest.mjs > "$SHOTS/result.json" 2>&1 || FAILED=1
 python3 - "$SHOTS/result.json" <<'PY'
 import json, sys
+def ann(level, text):
+    # 走 annotation 而不是 stdout：CI 的日志对 contents-only token 是 403。
+    print('::%s::%s' % (level, text.replace('\r', ' ').replace('\n', ' ')[:500]))
 raw = open(sys.argv[1]).read()
 try:
     i, j = raw.index('{'), raw.rindex('}')
     d = json.loads(raw[i:j + 1])
 except Exception:
-    print('  无头复验没吐出 JSON：\n' + raw[-800:]); sys.exit(1)
+    print('  无头复验没吐出 JSON：\n' + raw[-800:])
+    ann('error', 'playtest 没吐出 JSON：' + raw[-400:]); sys.exit(1)
 for r in d['rows']:
     print(('  ok   ' if r['pass'] else '  FAIL ') + r['test'] + ('' if r['pass'] else '  ← ' + json.dumps(r['detail'], ensure_ascii=False)[:300]))
+for r in d['rows']:
+    if not r['pass']:
+        ann('error', 'playtest FAIL ' + r['test'] + ' ' + json.dumps(r['detail'], ensure_ascii=False)[:300])
+for e in (d.get('errors') or [])[:6]:
+    ann('error', 'console ' + str(e)[:300])
 print('rows: %d  fail: %s  errors: %s' % (len(d['rows']), d['fail'], d.get('errors')))
+ann('notice', 'playtest rows=%d fail=%s' % (len(d['rows']), d['fail']))
 sys.exit(1 if d['fail'] or len(d['rows']) < 20 else 0)
 PY
-[ $? -ne 0 ] && FAILED=1
+PYRC=$?
+[ $PYRC -ne 0 ] && FAILED=1
 
 kill $WD 2>/dev/null
 echo "=== 截图：$SHOTS ==="

@@ -25,6 +25,9 @@ jobs:
         run: bash tools/verify.sh
         env:
           WD_TIMEOUT: 420
+          # 截图写到 CI 专属目录：.playtest/ 在 .gitignore 里，upload-artifact 十次运行
+          # 一次都没传上来过，于是这条"我看过了"的证据其实从来没存在。
+          SHOT_DIR: ${{ github.workspace }}/.ci-playtest
 
       # 复验截图是这仓库的"我看过了"证据，失败时也要留下。
       - name: 上传复验截图
@@ -32,5 +35,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playtest
-          path: .playtest/
-          if-no-files-found: ignore
+          path: .ci-playtest/
+          if-no-files-found: error
