@@ -221,8 +221,21 @@ async function main() {
   const ok = (test, pass, detail) => rows.push({ test, pass: !!pass, detail: detail ?? null });
 
   await cdp.send('Page.navigate', { url: BASE }, sessionId);
-  await new Promise((r) => setTimeout(r, 1500));
-  ok('页面加载：window.nikoli 挂上', await js('!!window.nikoli && !!window.nikoli.debug'));
+  // 等的是"模块图跑完"这个事实，不是某个拍脑袋的 sleep：本地静态服 200ms 就够，
+  // 线上 Pages 首次加载要过 TLS + 十几个模块，固定等 1.5s 会误判成"页面没起来"。
+  let booted = false;
+  for (let i = 0; i < 80 && !booted; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    booted = await js('!!window.nikoli && !!window.nikoli.debug');
+  }
+  ok('页面加载：window.nikoli 挂上', booted);
+  if (!booted) {
+    // 起不来就别往下演了：后面的探针会对着 undefined 一路抛，把真正的原因（模块 404、
+    // 语法错、MIME 不对）埋在一堆噪音底下。
+    console.log(JSON.stringify({ rows, fail: ['页面没起来'], errors: cdp.errors.slice(0, 8) }, null, 2));
+    ws.close();
+    process.exit(1);
+  }
   await js(PAGE);
 
   // ---- 首页：四张玩法卡 + 每日四格，档位名必须来自玩法自己 ------------------
