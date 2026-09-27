@@ -24,6 +24,7 @@ const PLAN = [
   { kind: 'tents', size: 6 },
   { kind: 'akabane', size: 6 },
   { kind: 'hitori', size: 6 },
+  { kind: 'slant', size: 6 },
 ].filter((p) => !process.env.KINDS || process.env.KINDS.split(',').includes(p.kind));
 
 // ---- 页面侧：状态读取与"该怎么点" ------------------------------------------------
@@ -86,6 +87,23 @@ window.__t = {
         const cell = [i % spec.n, (i - i % spec.n) / spec.n];
         steps.push({ mode: 'tap', cells: [cell] });
         if (spec.solution[i] === 2) steps.push({ mode: 'tap', cells: [cell] });
+      }
+      return { steps, total: spec.par };
+    }
+    if (kind === 'slant') {
+      // 两遍真指针轨迹刷完全盘：第一遍用拖动把每一行整排画成 "/"，第二遍再把该是 "\\" 的
+      // 连续段拖成 "\\"（落单的格子就 tap）。这条路上 down/move/up 与像素换算全都要 live。
+      const n = spec.n;
+      const steps = [];
+      for (let y = 0; y < n; y++) {
+        steps.push({ mode: 'drag', cells: Array.from({ length: n }, (_, x) => [x, y]) });
+        for (let x = 0; x < n; ) {
+          const run = [];
+          while (x + run.length < n && spec.solution[y * n + x + run.length] === 2) run.push([x + run.length, y]);
+          if (!run.length) { x++; continue; }
+          steps.push({ mode: run.length > 1 ? 'drag' : 'tap', cells: run });
+          x += run.length;
+        }
       }
       return { steps, total: spec.par };
     }

@@ -9,6 +9,7 @@ import nurikabe from '../puzzles/nurikabe.js';
 import tents from '../puzzles/tents.js';
 import akabane from '../puzzles/akabane.js';
 import hitori from '../puzzles/hitori.js';
+import slant from '../puzzles/slant.js';
 
 const SHELL = {
   nonogram: { glyph: '▩', dual: true, primary: '涂黑', secondary: '画叉', tip: '按住拖动可以一次涂一排' },
@@ -19,16 +20,18 @@ const SHELL = {
   tents: { glyph: '▲', dual: true, primary: '搭帐', secondary: '记不放', tip: '每棵树旁一顶帐，帐篷连斜角都不许挨着' },
   akabane: { glyph: '◧', dual: true, primary: '涂色', secondary: '打叉', tip: '空格点一下涂黑、再点涂白；2×2 不许四格同色' },
   hitori: { glyph: '◣', dual: true, primary: '划黑', secondary: '点小圆点', tip: '划掉的格子互不相接；留下的数字行与列里不许撞' },
+  slant: { glyph: '╱', dual: true, primary: '画斜线', secondary: '记一笔', tip: '点一下是 "/"、再点换 "\\"；按住拖动可以把同方向一路画过去' },
 };
 
-export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe, tents, akabane, hitori].map((k) => ({ ...k, shell: SHELL[k.id] }));
+export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe, tents, akabane, hitori, slant]
+  .map((k) => ({ ...k, shell: SHELL[k.id] }));
 
 export const byId = (id) => KINDS.find((k) => k.id === id) || null;
 
 // 每日种子集中在这里算，首页和路由两条入口才能拿到同一道题。
 export const dailySeed = (day, kindId) => `nikoli-daily|${day}|${kindId}`;
 
-// 每日挑战的题面只由日期决定：同一天的四道题在所有设备上是同一套。
+// 每日挑战的题面只由日期决定：同一天的那一套题在所有设备上是同一套。
 // 尺寸按日期轮转，这样"今天做哪档"也不是玩家能挑的 —— 挑不了才叫挑战。
 export function dailySpec(day) {
   let h = 0;
