@@ -1,0 +1,54 @@
+# macOS
+.DS_Store
+._*
+
+# Xcode —— 工程由 XcodeGen 从 project.yml 生成，.xcodeproj 不入库
+*.xcodeproj
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# 构建产物
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.plan
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+.swiftpm
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Node / Electron（-cos 生成艺术仓）
+node_modules/
+npm-debug.log*
+yarn-error.log*
+dist/
+out/
+*.local
+.env
+.env.*
+
+# 密钥与签名凭证：绝不入库
+*.p12
+*.p8
+*.mobileprovision
+*.cer
+secrets/
+AuthKey_*.p8

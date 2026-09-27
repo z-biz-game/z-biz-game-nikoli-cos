@@ -1,0 +1,16 @@
+{
+  "name": "nikoli",
+  "version": "1.0.0",
+  "description": "纸上逻辑 Nikoli — 浏览器原生纸笔推理谜题：数织 / 数连 / 点灯 / 孔明棋。四种玩法各带唯一解生成器与真求解器（提示即推理）。零构建、零运行时依赖、无美术与音频文件。",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test test/",
+    "check": "for f in $(git ls-files '*.js' '*.mjs'); do node --check \"$f\" || exit 1; done && echo OK",
+    "verify": "bash tools/verify.sh"
+  },
+  "keywords": ["game", "puzzle", "nonogram", "numberlink", "lights-out", "peg-solitaire", "logic", "canvas", "web"],
+  "author": "z-biz-game",
+  "license": "MIT"
+}
