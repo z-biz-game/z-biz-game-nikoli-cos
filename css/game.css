@@ -91,7 +91,7 @@ p { margin: 0; }
 .daily-count { font-family: var(--mono); color: var(--accent); line-height: 1; }
 .daily-count b { font-size: 26px; }
 .daily-count span { font-size: 13px; opacity: .6; }
-.daily-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 8px; }
+.daily-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 8px; margin: 12px 0 8px; }
 .daily-cell {
   border: 1px solid var(--rule); background: var(--card); border-radius: 10px;
   padding: 9px 4px 7px; text-align: center; cursor: pointer; font-family: inherit; color: inherit;

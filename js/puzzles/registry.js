@@ -5,15 +5,17 @@ import nonogram from '../puzzles/nonogram.js';
 import numberlink from '../puzzles/numberlink.js';
 import lightsout from '../puzzles/lightsout.js';
 import pegsolitaire from '../puzzles/pegsolitaire.js';
+import nurikabe from '../puzzles/nurikabe.js';
 
 const SHELL = {
   nonogram: { glyph: '▩', dual: true, primary: '涂黑', secondary: '画叉', tip: '按住拖动可以一次涂一排' },
   numberlink: { glyph: '⤳', dual: true, primary: '连线', secondary: '擦除', tip: '从圆点起手拖出路径，拖回自己即截断' },
   lightsout: { glyph: '◉', dual: false, primary: '按灯', secondary: '', tip: '按一格会连带翻转上下左右' },
   pegsolitaire: { glyph: '◐', dual: false, primary: '跳子', secondary: '', tip: '点一颗珠子，再点它跳过的位置' },
+  nurikabe: { glyph: '▚', dual: true, primary: '落墨', secondary: '打点', tip: '墨滴连成岛，海要用点标出来' },
 };
 
-export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire].map((k) => ({ ...k, shell: SHELL[k.id] }));
+export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe].map((k) => ({ ...k, shell: SHELL[k.id] }));
 
 export const byId = (id) => KINDS.find((k) => k.id === id) || null;
 

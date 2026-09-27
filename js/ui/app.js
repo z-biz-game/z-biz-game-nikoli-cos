@@ -77,8 +77,11 @@ function renderHome() {
   const row = $('#daily-row');
   row.textContent = '';
   const nDone = Object.keys(done).length;
+  const specs = dailySpec(day);
   $('#daily-done').textContent = String(nDone);
-  for (const d of dailySpec(day)) {
+  // 分母跟着注册表走：加一款玩法，这里不许还写着上一次那个数
+  $('#daily-total').textContent = '/' + specs.length;
+  for (const d of specs) {
     const k = byId(d.kindId);
     const b = make('button', 'daily-cell' + (done[k.id] ? ' done' : ''));
     b.appendChild(make('span', 'g', k.shell.glyph));

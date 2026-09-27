@@ -2,7 +2,7 @@
 // pointerdown/move/up、落子判定、HUD、结算、存档全都要 live。
 // 页面里只提供"读状态 + 算该怎么点"的辅助，不提供任何绕过引擎判定的后门。
 //
-//   node tools/playtest.mjs                 # 四种玩法全跑
+//   node tools/playtest.mjs                 # 全部玩法各跑一局
 //   KINDS=pegsolitaire node tools/playtest.mjs
 // 前置：Chrome 已带 --remote-debugging-port 起好（tools/verify.sh 负责这件事）。
 //   CDP_PORT=9335 BASE_URL=http://127.0.0.1:5188/ node tools/playtest.mjs
@@ -20,6 +20,7 @@ const PLAN = [
   { kind: 'numberlink', size: 4 },
   { kind: 'lightsout', size: 4 },
   { kind: 'pegsolitaire', size: 25 },
+  { kind: 'nurikabe', size: 7 },
 ].filter((p) => !process.env.KINDS || process.env.KINDS.split(',').includes(p.kind));
 
 // ---- 页面侧：状态读取与"该怎么点" ------------------------------------------------
@@ -70,6 +71,16 @@ window.__t = {
       const m = await import(new URL('js/puzzles/lightsout.js', location.href).href);
       const n = spec.n;
       return { steps: m.minSolution(Uint8Array.from(spec.board), n).map((i) => ({ mode: 'tap', cells: [[i % n, (i - (i % n)) / n]] })) };
+    }
+    if (kind === 'nurikabe') {
+      const n = spec.n;
+      const given = new Set(spec.clues.map((c) => c[0]));
+      const steps = [];
+      for (let i = 0; i < n * n; i++) {
+        if (given.has(i)) continue;
+        steps.push({ mode: 'tap', cells: [[i % n, (i - i % n) / n]], pen: spec.solution[i] === 2 ? 0 : 1 });
+      }
+      return { steps, total: spec.par };
     }
     const b = spec.holes;
     return { steps: spec.plan.flatMap(([a, , c]) => [
@@ -238,19 +249,23 @@ async function main() {
   }
   await js(PAGE);
 
-  // ---- 首页：四张玩法卡 + 每日四格，档位名必须来自玩法自己 ------------------
+  // ---- 首页：每款玩法一张卡 + 每日每款一格，档位名必须来自玩法自己 ------------
   const home = await js(`(() => {
     window.nikoli.debug.home();
+    const dailyTotal = document.querySelector('#daily-total').textContent.trim();
     const cards = [...document.querySelectorAll('#kinds .kind')].map((n) => ({
       name: n.querySelector('.kind-name').textContent,
       sizes: [...n.querySelectorAll('.size-chip')].map((b) => b.textContent),
     }));
     const daily = [...document.querySelectorAll('#daily-row .daily-cell')].map((n) =>
       n.querySelector('.n').textContent + ' ' + n.querySelector('.s').textContent);
-    return { cards, daily, glyph: document.querySelectorAll('#kinds .kind-glyph').length };
+    return { cards, daily, dailyTotal, glyph: document.querySelectorAll('#kinds .kind-glyph').length };
   })()`);
-  ok('首页：四种玩法都上卡片', home.cards.length === 4, home.cards.map((c) => c.name));
-  ok('首页：每日挑战四格齐', home.daily.length === 4, home.daily);
+  // 条数与注册表对齐，而不是钉一个上次数过的 4：加玩法的人不该被首页的旧账绊住
+  const nKinds = await js('window.nikoli.KINDS.length');
+  ok('首页：每款玩法都上卡片', home.cards.length === nKinds && nKinds >= 4, { cards: home.cards.map((c) => c.name), nKinds });
+  ok('首页：每日挑战每款一格', home.daily.length === nKinds, { daily: home.daily, nKinds });
+  ok('首页：每日计数器的分母就是格数', home.dailyTotal === '/' + nKinds, home.dailyTotal);
   ok('首页：孔明棋档位写"孔"不写"×"',
     home.cards.find((c) => c.name === '孔明棋').sizes.every((s) => s.includes('孔')) &&
       home.daily.some((d) => d.includes('孔')),
@@ -290,7 +305,21 @@ async function main() {
       return { x, y };
     };
 
+    let pen = 0;
+    const setPen = async (want) => {
+      if (want === undefined || want === pen) return;
+      const sel = '#tool-toggle button[data-tool="' + want + '"]';
+      const r = await js('(() => { const b = document.querySelector(' + JSON.stringify(sel) + ');'
+        + ' if (!b) return null; const q = b.getBoundingClientRect();'
+        + ' return { x: Math.round(q.left + q.width / 2), y: Math.round(q.top + q.height / 2) }; })()');
+      if (!r) throw new Error(`没有 tool-toggle 按钮 data-tool=${want}`);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...r, button: 'left', buttons: 1, clickCount: 1 }, sessionId);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...r, button: 'left', buttons: 0 }, sessionId);
+      pen = want;
+    };
+
     for (const s of plan.steps) {
+      await setPen(s.pen);
       const a = await pt(s.cells[0]);
       if (s.mode === 'drag') {
         await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...a, button: 'left', buttons: 1, clickCount: 1 }, sessionId);
