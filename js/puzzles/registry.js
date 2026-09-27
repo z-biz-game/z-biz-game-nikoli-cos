@@ -1,6 +1,7 @@
 // 玩法注册表：引擎模块只提供题与棋盘，这里补上"外壳需要知道、引擎不该关心"的那部分
 // —— 首页图标、副笔在这玩法里是什么意思。新增玩法只需要加一个文件加一行。
 
+import { hashSeed } from '../core/rng.js';
 import nonogram from '../puzzles/nonogram.js';
 import numberlink from '../puzzles/numberlink.js';
 import lightsout from '../puzzles/lightsout.js';
@@ -32,13 +33,14 @@ export const byId = (id) => KINDS.find((k) => k.id === id) || null;
 export const dailySeed = (day, kindId) => `nikoli-daily|${day}|${kindId}`;
 
 // 每日挑战的题面只由日期决定：同一天的那一套题在所有设备上是同一套。
-// 尺寸按日期轮转，这样"今天做哪档"也不是玩家能挑的 —— 挑不了才叫挑战。
+// 尺寸也按日期轮转，这样"今天做哪档"不是玩家能挑的 —— 挑不了才叫挑战。
+//
+// 轮转必须吃整颗种子的哈希，不能像以前那样从同一个 h 上按 i*3 位去切：日期串只有末两位在变，
+// 高位段几乎天天一样，实测有 7 个玩法在 28 天里一次都没换过尺寸（10×10 那档永远轮不到）。
+// 现在每个玩法各自哈希一次，位段之间不再互相借位，玩法加到多少个都不会溢出。
 export function dailySpec(day) {
-  let h = 0;
-  for (let i = 0; i < day.length; i++) h = (Math.imul(h, 31) + day.charCodeAt(i)) >>> 0;
-  return KINDS.map((k, i) => ({
-    kindId: k.id,
-    sizeKey: k.sizes[(h >> (i * 3)) % k.sizes.length].key,
-    seed: dailySeed(day, k.id),
-  }));
+  return KINDS.map((k) => {
+    const seed = dailySeed(day, k.id);
+    return { kindId: k.id, sizeKey: k.sizes[hashSeed(seed) % k.sizes.length].key, seed };
+  });
 }
