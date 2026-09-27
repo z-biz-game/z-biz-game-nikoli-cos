@@ -1,54 +1,28 @@
+# 这是个零构建、零依赖的裸 ES Module 项目：没有 dist/、没有 node_modules 也该能跑。
+# 这里只挡本机噪音和复验产物。
+
 # macOS
 .DS_Store
 ._*
 
-# Xcode —— 工程由 XcodeGen 从 project.yml 生成，.xcodeproj 不入库
-*.xcodeproj
-*.xcworkspace
-!default.xcworkspace
-xcuserdata/
-*.moved-aside
-*.xccheckout
-*.xcscmblueprint
+# 无头复验产物（tools/verify.sh 写的截图与 result.json）
+.playtest/
 
-# 构建产物
-build/
-DerivedData/
-*.hmap
-*.ipa
-*.dSYM.zip
-*.dSYM
-*.plan
-timeline.xctimeline
-playground.xcworkspace
-
-# Swift Package Manager
-.build/
-Packages/
-Package.pins
-Package.resolved
-.swiftpm
-
-# fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
-
-# Node / Electron（-cos 生成艺术仓）
-node_modules/
-npm-debug.log*
-yarn-error.log*
-dist/
-out/
+# 编辑器/工具本机状态
 *.local
+.vscode/
+.idea/
+
+# 密钥绝不入库（本项目不该有，但挡一道）
 .env
 .env.*
-
-# 密钥与签名凭证：绝不入库
+secrets/
 *.p12
 *.p8
 *.mobileprovision
-*.cer
-secrets/
 AuthKey_*.p8
+
+# 万一有人拿 npm 装了东西跑基准测试
+node_modules/
+npm-debug.log*
+yarn-error.log*

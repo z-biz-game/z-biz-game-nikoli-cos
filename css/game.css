@@ -230,10 +230,14 @@ input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
 /* ── 宽屏：首页两列 ─────────────────────────────────── */
 @media (min-width: 640px) {
   .kind-grid { grid-template-columns: repeat(2, 1fr); }
-  #play { flex-direction: row; flex-wrap: wrap; align-items: stretch; }
-  .playbar { width: 100%; }
-  #board-wrap { flex: 1 1 auto; }
-  .statusline, .controls, .hint-note { width: 100%; }
+  /* 棋盘那一行必须由容器给出确定高度。用 flex 排：board-wrap 独占一行，而这一行的交叉轴
+     尺寸又是内容撑出来的 —— layout() 把画布放大 → wrap 变高 → ResizeObserver 重排 →
+     画布更大，一路涨到被宽度卡住。改成 grid，minmax(0,1fr) 只跟容器要高度、不跟画布要。
+     选择器带上 :not([hidden])：#play 的 id 权重压得过 .screen[hidden]{display:none}。 */
+  #play:not([hidden]) {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

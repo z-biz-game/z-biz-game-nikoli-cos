@@ -83,7 +83,7 @@ function renderHome() {
     const b = make('button', 'daily-cell' + (done[k.id] ? ' done' : ''));
     b.appendChild(make('span', 'g', k.shell.glyph));
     b.appendChild(make('span', 'n', k.title));
-    b.appendChild(make('span', 's', `${d.sizeKey}×${d.sizeKey}`));
+    b.appendChild(make('span', 's', sizeLabel(k, d.sizeKey)));
     b.onclick = () => {
       sfx.click();
       location.hash = `#/p/${k.id}/${d.sizeKey}/d`;
@@ -151,6 +151,10 @@ function bestAcrossSizes(k) {
   return best ? `最佳 ${fmt(best)} · ${label}` : '还没有纪录';
 }
 
+// 档位名得由玩法自己给：孔明棋的 sizeKey 是孔数，印成 "33×33" 就是在描述一块不存在的棋盘。
+const sizeLabel = (kind, sizeKey) =>
+  kind.sizes.find((s) => s.key === sizeKey)?.label || `${sizeKey}×${sizeKey}`;
+
 const randomIndex = () => Math.floor(Math.random() * 1e6) + Date.now() % 1000;
 
 // ---- 一局 -----------------------------------------------------------------------
@@ -174,7 +178,7 @@ function start(kind, sizeKey, index, daily) {
   view.tool = 0;
   view.layout();
   $('#play-title').textContent = kind.title;
-  $('#play-size').textContent = `${sizeKey}×${sizeKey}` + (daily ? ' · 今日' : '');
+  $('#play-size').textContent = sizeLabel(kind, sizeKey) + (daily ? ' · 今日' : '');
   $('#hint-note').textContent = kind.shell.tip;
   $('#hint-count').textContent = '0';
   const dual = kind.shell.dual;
@@ -234,7 +238,7 @@ function finish() {
   const stars = starsOf(st, S.hints);
   window.setTimeout(() => {
     $('#result-title').textContent = S.daily ? '今日挑战完成' : '解开了';
-    $('#result-sub').textContent = `${S.kind.title} · ${S.sizeKey}×${S.sizeKey} · ${S.kind.latin}`;
+    $('#result-sub').textContent = `${S.kind.title} · ${sizeLabel(S.kind, S.sizeKey)} · ${S.kind.latin}`;
     $('#result-mark').textContent = S.hints ? '◇' : '✦';
     $$('#result-stars i').forEach((n, i) => n.classList.toggle('on', i < stars));
     const rows = $('#result-rows');
