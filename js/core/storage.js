@@ -4,11 +4,9 @@
 const KEY = 'nikoli.save.v1';
 
 const shape = {
-  settings: { sound: true, marks: true, colorLabels: true, reduceMotion: false },
+  settings: { sound: true, reduceMotion: false },
   records: {},   // "nonogram:10" → { bestMs, bestMoves, solves, noHintSolves }
   daily: {},     // "2026-09-27" → { nonogram: true, ... }
-  saves: {},     // "nonogram:normal:2026-09-27" → engine snapshot
-  campaign: {},  // engine id → highest level index already cleared
   stats: { solves: 0, noHint: 0, hints: 0 },
   streak: { day: '', count: 0, best: 0 },
 };
@@ -20,8 +18,6 @@ function blank() {
     settings: { ...shape.settings },
     records: {},
     daily: {},
-    saves: {},
-    campaign: {},
     stats: { ...shape.stats },
     streak: { ...shape.streak },
   };
@@ -38,8 +34,6 @@ function read() {
         settings: { ...shape.settings, ...(p.settings || {}) },
         records: p.records || {},
         daily: p.daily || {},
-        saves: p.saves || {},
-        campaign: p.campaign || {},
         stats: { ...shape.stats, ...(p.stats || {}) },
         streak: { ...shape.streak, ...(p.streak || {}) },
       };
@@ -95,25 +89,6 @@ export const store = {
     return bumped;
   },
   dailyDone(day) { return { ...(read().daily[day] || {}) }; },
-  // Levels cleared per engine, so 关卡 mode can offer "continue" without a server.
-  campaign(id) { return read().campaign[id] || 0; },
-  advanceCampaign(id, level) {
-    const c = read().campaign;
-    if ((c[id] || 0) < level) c[id] = level;
-    write();
-    return c[id];
-  },
-  // An in-progress board, keyed by puzzle id. A puzzle is a pure function of its
-  // seed, so only the player's own pencil marks need storing — never the answer.
-  saveBoard(id, snap) {
-    read().saves[id] = snap;
-    // Keep the map small: a board abandoned more than 40 saves ago is gone.
-    const keys = Object.keys(read().saves);
-    if (keys.length > 40) for (const k of keys.slice(0, keys.length - 40)) delete read().saves[k];
-    write();
-  },
-  loadBoard(id) { return read().saves[id] || null; },
-  dropBoard(id) { delete read().saves[id]; write(); },
   finish(id, { ms, moves, hints = 0 }) {
     const db = read().records;
     const prev = db[id] || { bestMs: 0, bestMoves: 0, solves: 0, noHintSolves: 0 };
@@ -139,8 +114,6 @@ export const store = {
       settings: { ...shape.settings, ...(p.settings || {}) },
       records: p.records,
       daily: p.daily || {},
-      saves: p.saves || {},
-      campaign: p.campaign || {},
       stats: { ...shape.stats, ...(p.stats || {}) },
       streak: { ...shape.streak, ...(p.streak || {}) },
     };
