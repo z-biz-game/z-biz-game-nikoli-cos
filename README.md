@@ -9,7 +9,7 @@
 
 ```bash
 node tools/serve.mjs        # → http://127.0.0.1:5173/，然后点开任一档位
-node --test test/           # 237 项引擎单测（不开浏览器）
+node --test test/*.test.mjs # 237 项引擎单测（不开浏览器）
 bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 ```
 
@@ -48,9 +48,13 @@ bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 
 ## 已验证
 
-`bash tools/verify.sh` 在本地跑通，输出即下面这些数字：
+`bash tools/verify.sh` 在本地跑通，输出即下面这些数字；同一份脚本每次 push 都在
+GitHub Actions 的 4 核 ubuntu runner 上再跑一遍（`.github/workflows/ci.yml`），红了就在
+CI 的 check-run 注解里点名是哪一条 —— 单测的命令要写成 `test/*.test.mjs`：把目录交给
+node 22 的 test runner，它一个文件都找不到，却只报一条名为 "test" 的失败，看起来像
+"测试跑了没通过"，其实是一道都没跑。
 
-- **237 项引擎单测**（`node --test test/`）。能配独立参照的地方都配了一份对拍：
+- **237 项引擎单测**（`node --test test/*.test.mjs`）。能配独立参照的地方都配了一份对拍：
   点灯的 GF(2) 消元 vs 枚举 2^(n²) 个按压力集的暴力；孔明棋的位图 DFS vs 用 `Set`
   重写一遍的朴素搜索 —— 连"证明死局"的集合大小都要相等；数墙 / 帐篷 / 黑白 / 隔离 /
   五寸钉各带一份只照白话规则数一遍的 `bruteOk`，与引擎判定互不引用（五寸钉那份是从
