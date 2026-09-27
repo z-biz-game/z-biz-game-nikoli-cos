@@ -7,8 +7,9 @@
 //
 // 和数织一样，求解器在这里负三责：判胜负（全亮即终局）、出提示（最短解里的一步）、
 // 生成期筛（把"两步就完"的题面挡在门外，并把 par 记进 spec）。
-// 翻转矩阵在 5×5、6×6 上是降秩的（零空间维数 2 和 4），所以同一盘面会有多个解 ——
-// 这是数学给的，不是 bug；par 一律按其中最少步的那个算。
+// 翻转矩阵不是每档都满秩：4×4 降秩 4、5×5 降秩 2，6×6 与 7×7 才回到满秩（维数 0，见测试）。
+// 于是同一盘面在 4×4 有 16 个解、在 5×5 有 4 个解 —— 这是数学给的，不是 bug；
+// par 一律按其中最少步的那个算。
 //
 // 行用位掩码存：一行的灯压成一个整数，追赶就退化成几行位运算，枚举 2^n 个首行才
 // 便宜到能在生成器里反复调用（n≤15 时一格一位，本玩法最大 7×7 绰绰有余）。
@@ -128,33 +129,41 @@ const TIERS = [
 
 const tierOf = (key) => TIERS.find((t) => t.key === key) || TIERS[1];
 
+function specOf(n, cfg, board, seed, dim = nullity(n)) {
+  const solutions = solveAll(board, n);
+  let par = n * n + 1;
+  for (const s of solutions) if (s.length < par) par = s.length;
+  return {
+    kind: 'lightsout',
+    n,
+    board: Array.from(board),
+    par,
+    solutions: solutions.length,
+    nullity: dim,
+    seed: String(seed),
+    tier: cfg.tier,
+  };
+}
+
 export function generate(seed, sizeKey = 5) {
   const cfg = tierOf(sizeKey);
   const n = cfg.key;
+  const dim = nullity(n);
   const rng = rngFrom(seed);
   const all = Array.from({ length: n * n }, (_, i) => i);
   let best = null;
   for (let attempt = 0; attempt < 200; attempt++) {
     const count = rng.range(cfg.press[0], cfg.press[1]);
     const board = boardFromPresses(n, rng.shuffle(all.slice()).slice(0, count));
-    const solutions = solveAll(board, n);
-    let par = n * n + 1;
-    for (const s of solutions) if (s.length < par) par = s.length;
-    if (!solutions.length || par === 0) continue;   // 翻回全亮了，那不是一道题
-    const spec = {
-      kind: 'lightsout',
-      n,
-      board: Array.from(board),
-      par,
-      solutions: solutions.length,
-      nullity: nullity(n),
-      seed: String(seed),
-      tier: cfg.tier,
-    };
+    const spec = specOf(n, cfg, board, seed, dim);
+    if (!spec.solutions || spec.par === 0) continue;   // 翻回全亮了，那不是一道题
     if (!best || spec.par > best.par) best = spec;
     if (spec.par >= cfg.par) return spec;
   }
-  return best || { ...generate(`${seed}#retry`, sizeKey) };
+  // 200 次都没够格：退到一组固定按压，而不是换个种子再递归 —— 生成器不该有深度未定的调用栈。
+  // boardFromPresses 倒推来的盘面一定可解，所以这条路给的一定是道题，只是可能偏易。
+  if (best) return best;
+  return specOf(n, cfg, boardFromPresses(n, all.slice(0, cfg.press[0])), seed, dim);
 }
 
 // ---- 引擎 -----------------------------------------------------------------------
@@ -183,7 +192,7 @@ export function create(spec) {
   };
 
   function snapshot() {
-    undoStack.push({ lit: Uint8Array.from(lit), pressed: Uint8Array.from(pressed), moves });
+    undoStack.push({ lit: Uint8Array.from(lit), pressed: Uint8Array.from(pressed) });
     if (undoStack.length > 300) undoStack.shift();
     redoStack.length = 0;
   }
@@ -197,10 +206,10 @@ export function create(spec) {
     if (!doneAt && litCount === total) doneAt = nowMs();
   }
 
+  // 快照只搬盘面，不搬 moves：按下又撤销是一次试错，那一步就得留在账上（四家同一口径）。
   function restore(snap) {
     lit = Uint8Array.from(snap.lit);
     pressed = Uint8Array.from(snap.pressed);
-    moves = snap.moves;
     reCount();
     doneAt = 0;
   }
@@ -235,20 +244,19 @@ export function create(spec) {
 
     undo() {
       if (!undoStack.length) return false;
-      redoStack.push({ lit: Uint8Array.from(lit), pressed: Uint8Array.from(pressed), moves });
+      redoStack.push({ lit: Uint8Array.from(lit), pressed: Uint8Array.from(pressed) });
       restore(undoStack.pop());
       return true;
     },
 
     redo() {
       if (!redoStack.length) return false;
-      undoStack.push({ lit: Uint8Array.from(lit), pressed: Uint8Array.from(pressed), moves });
+      undoStack.push({ lit: Uint8Array.from(lit), pressed: Uint8Array.from(pressed) });
       const snap = redoStack.pop();
       lit = Uint8Array.from(snap.lit);
       pressed = Uint8Array.from(snap.pressed);
       reCount();
-      // 快照里存的是这一步之后的按压数，直接取回，别再用 +1 猜一遍
-      moves = snap.moves;
+      // 重做只是把已经付过账的那次按压放回盘面，不再收一遍
       if (litCount === total) doneAt = nowMs();
       return true;
     },
