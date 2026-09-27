@@ -6,6 +6,7 @@ import numberlink from '../puzzles/numberlink.js';
 import lightsout from '../puzzles/lightsout.js';
 import pegsolitaire from '../puzzles/pegsolitaire.js';
 import nurikabe from '../puzzles/nurikabe.js';
+import tents from '../puzzles/tents.js';
 
 const SHELL = {
   nonogram: { glyph: '▩', dual: true, primary: '涂黑', secondary: '画叉', tip: '按住拖动可以一次涂一排' },
@@ -13,9 +14,10 @@ const SHELL = {
   lightsout: { glyph: '◉', dual: false, primary: '按灯', secondary: '', tip: '按一格会连带翻转上下左右' },
   pegsolitaire: { glyph: '◐', dual: false, primary: '跳子', secondary: '', tip: '点一颗珠子，再点它跳过的位置' },
   nurikabe: { glyph: '▚', dual: true, primary: '落墨', secondary: '打点', tip: '墨滴连成岛，海要用点标出来' },
+  tents: { glyph: '▲', dual: true, primary: '搭帐', secondary: '记不放', tip: '每棵树旁一顶帐，帐篷连斜角都不许挨着' },
 };
 
-export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe].map((k) => ({ ...k, shell: SHELL[k.id] }));
+export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe, tents].map((k) => ({ ...k, shell: SHELL[k.id] }));
 
 export const byId = (id) => KINDS.find((k) => k.id === id) || null;
 

@@ -21,6 +21,7 @@ const PLAN = [
   { kind: 'lightsout', size: 4 },
   { kind: 'pegsolitaire', size: 25 },
   { kind: 'nurikabe', size: 7 },
+  { kind: 'tents', size: 6 },
 ].filter((p) => !process.env.KINDS || process.env.KINDS.split(',').includes(p.kind));
 
 // ---- 页面侧：状态读取与"该怎么点" ------------------------------------------------
@@ -71,6 +72,9 @@ window.__t = {
       const m = await import(new URL('js/puzzles/lightsout.js', location.href).href);
       const n = spec.n;
       return { steps: m.minSolution(Uint8Array.from(spec.board), n).map((i) => ({ mode: 'tap', cells: [[i % n, (i - (i % n)) / n]] })) };
+    }
+    if (kind === 'tents') {
+      return { steps: spec.tents.map(([x, y]) => ({ mode: 'tap', cells: [[x, y]] })), total: spec.par };
     }
     if (kind === 'nurikabe') {
       const n = spec.n;
