@@ -7,6 +7,9 @@
 #   ./tools/verify.sh                    # 全跑
 #   KINDS=pegsolitaire ./tools/verify.sh # 只复验一种玩法（跳过单测用 SKIP_UNIT=1）
 set -u
+# pipefail 是这条脚本自己的命门：`node --test test/ | tail -14` 在 bash 里取的是 tail 的
+# 退出码，单测全红也会一路往下跑，最后报 ALL GREEN。
+set -o pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 CDP=${CDP_PORT:-9335}
 # 5173 在本机常被别的项目的 dev server 占着，绑失败会静默对旧端口做测试，所以默认另起。
