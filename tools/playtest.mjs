@@ -25,6 +25,7 @@ const PLAN = [
   { kind: 'akabane', size: 6 },
   { kind: 'hitori', size: 6 },
   { kind: 'slant', size: 6 },
+  { kind: 'shikaku', size: 6 },
 ].filter((p) => !process.env.KINDS || process.env.KINDS.split(',').includes(p.kind));
 
 // ---- 页面侧：状态读取与"该怎么点" ------------------------------------------------
@@ -104,6 +105,28 @@ window.__t = {
           steps.push({ mode: run.length > 1 ? 'drag' : 'tap', cells: run });
           x += run.length;
         }
+      }
+      return { steps, total: spec.par };
+    }
+    if (kind === 'shikaku') {
+      // 一间一笔：按题解把每一间的包围盒拖出来。一格宽的那间走"点两下"（按下即抬手，
+      // 第一下钉角、第二下定对角）—— 这条路同时验掉键盘光标用的同一套手势。
+      const n = spec.n;
+      const boxes = new Map();
+      for (let t = 0; t < n * n; t++) {
+        const o = spec.solution[t];
+        if (!boxes.has(o)) boxes.set(o, { x0: 1e9, y0: 1e9, x1: -1, y1: -1 });
+        const b = boxes.get(o);
+        const x = t % n, y = (t - x) / n;
+        if (x < b.x0) b.x0 = x;
+        if (x > b.x1) b.x1 = x;
+        if (y < b.y0) b.y0 = y;
+        if (y > b.y1) b.y1 = y;
+      }
+      const steps = [];
+      for (const b of boxes.values()) {
+        if (b.x0 === b.x1 && b.y0 === b.y1) steps.push({ mode: 'tap', cells: [[b.x0, b.y0]] }, { mode: 'tap', cells: [[b.x0, b.y0]] });
+        else steps.push({ mode: 'drag', cells: [[b.x0, b.y0], [b.x1, b.y1]] });
       }
       return { steps, total: spec.par };
     }

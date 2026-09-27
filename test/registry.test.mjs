@@ -31,7 +31,7 @@ function fakeCtx() {
 }
 
 test('注册表里每个玩法的外壳字段都齐：首页卡片与副笔文案都有着落', () => {
-  assert.ok(KINDS.length >= 9, `只有 ${KINDS.length} 个玩法`);
+  assert.ok(KINDS.length >= 10, `只有 ${KINDS.length} 个玩法`);
   const ids = new Set();
   for (const k of KINDS) {
     assert.ok(!ids.has(k.id), `${k.id} 重复注册`);

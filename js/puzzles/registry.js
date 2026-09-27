@@ -11,6 +11,7 @@ import tents from '../puzzles/tents.js';
 import akabane from '../puzzles/akabane.js';
 import hitori from '../puzzles/hitori.js';
 import slant from '../puzzles/slant.js';
+import shikaku from '../puzzles/shikaku.js';
 
 const SHELL = {
   nonogram: { glyph: '▩', dual: true, primary: '涂黑', secondary: '画叉', tip: '按住拖动可以一次涂一排' },
@@ -22,9 +23,10 @@ const SHELL = {
   akabane: { glyph: '◧', dual: true, primary: '涂色', secondary: '打叉', tip: '空格点一下涂黑、再点涂白；2×2 不许四格同色' },
   hitori: { glyph: '◣', dual: true, primary: '划黑', secondary: '点小圆点', tip: '划掉的格子互不相接；留下的数字行与列里不许撞' },
   slant: { glyph: '╱', dual: true, primary: '画斜线', secondary: '记一笔', tip: '点一下是 "/"、再点换 "\\"；按住拖动可以把同方向一路画过去' },
+  shikaku: { glyph: '▦', dual: true, primary: '围一间', secondary: '擦掉', tip: '拖出一个长方形把它围成一间，也可以点两下选两个对角；一间只能有一个数字' },
 };
 
-export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe, tents, akabane, hitori, slant]
+export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe, tents, akabane, hitori, slant, shikaku]
   .map((k) => ({ ...k, shell: SHELL[k.id] }));
 
 export const byId = (id) => KINDS.find((k) => k.id === id) || null;
