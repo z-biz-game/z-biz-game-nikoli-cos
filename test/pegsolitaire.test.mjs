@@ -260,16 +260,19 @@ test('25 孔小十字的满盘缺中心可证无解，33 孔英式同一条开�
   // 这是本文件最硬的外部事实：两边都跑到**穷尽**（capped=false），不是"搜不动了"。
   const cross = BOARDS.cross;
   const stats = {};
-  const t0 = Date.now();
+  // 214749 是这条开局的全部可达局面数：nodes 与 dead 相等就是"每一个都查过、每一个都是死局"，
+  // 也就是证明本身。墙钟测不出这件事 —— 本机 149ms、把 node 压到能效核要 3.1s、CI 满载更慢，
+  // 差 20 倍而节点数一个没多，所以这里只钉工作量。（预算 40 万封顶，跑飞了会先撞上 capped。）
   assert.equal(solve(cross, ...holesToBits(classicStart(cross)), 400000, stats), null);
   assert.equal(stats.capped, false, '没超预算的 null 才是证明');
-  assert.ok(Date.now() - t0 < 3000, `穷尽 25 孔空间用了 ${Date.now() - t0}ms`);
   const ref = refSolve(cross.holes, classicStart(cross), 3000000);
   assert.equal(ref.capped, false);
   assert.equal(ref.solvable, false);
   // 两套实现判过"无解"的局面数一致：连证明集合都对得上
   assert.ok(stats.dead > 100000, `引擎只看了 ${stats.dead} 个局面`);
   assert.equal(stats.dead, ref.dead, `引擎 ${stats.dead} vs 参照 ${ref.dead}`);
+  assert.equal(stats.nodes, 214749);
+  assert.equal(stats.nodes, stats.dead, '走过的每个局面都被证明是死局，一个不漏');
 
   const en = BOARDS.english;
   const got = solve(en, ...holesToBits(classicStart(en)), 400000, stats);
@@ -395,21 +398,34 @@ test('generate：三档 × 40 seed 全部交出可独立复放的题，且没有
   }
 });
 
-test('generate 的时间预算：单题最坏值与整档总耗时都设上限', () => {
-  // 上限按档位分别定：法式那一档实测最坏 260ms，留 40% 余量给慢机器；
-  // 阈值往低收紧是有意为之 —— 生成发生在玩家点开一局的瞬间，手感是验收项。
-  const BUDGET = { 25: 40, 33: 150, 37: 400 };
+test('generate 的工作量预算：按搜索节点数计，墙钟只当防死循环的保险丝', () => {
+  // 这条曾经写成绝对毫秒（"法式最坏 260ms，留 40% 余量"），于是一道测算法的断言变成了
+  // 掷硬币：本机满载时 490ms、把 node 用 taskpolicy 关到能效核再跑，25 孔那种小题能涨到
+  // 1.2 秒 —— 差 30 倍，而这 30 倍里没有任何一点属于算法。CI runner 上它到底红过多少次，
+  // 没人知道，因为单测那一段的退出码当时被管道的 tail 吞掉了（见 tools/verify.sh 的 pipefail）。
+  //
+  // 现在钉的是节点数：同一颗种子在任何机器、任何负载上都是同一个数，指数级膨胀（换候选
+  // 顺序、死局集失效）照样当场爆表，而玩家点开一局的手感本来就取决于这份工作。
+  // 上限给到实测最坏值的两倍上下：40 seed 实测 25 孔 3.7 万 / 33 孔 5.4 万 / 37 孔 5.3 万节点。
+  const NODE_CAP = { 25: 80_000, 33: 120_000, 37: 120_000 };
+  const NODE_TOTAL_CAP = { 25: 2_000_000, 33: 2_000_000, 37: 2_500_000 };
   for (const sizeKey of [25, 33, 37]) {
     let worst = 0;
+    let total = 0;
     const t0 = Date.now();
     for (const seed of SEEDS) {
-      const a = Date.now();
-      generate(seed, sizeKey);
-      worst = Math.max(worst, Date.now() - a);
+      const spec = generate(seed, sizeKey);
+      const work = (spec.nodes || 0) + (spec.reverseNodes || 0);
+      assert.ok(work > 0, `${TIER_BY_KEY[sizeKey].label} / ${seed} 没报工作量`);
+      worst = Math.max(worst, work);
+      total += work;
     }
-    const total = Date.now() - t0;
-    assert.ok(worst <= BUDGET[sizeKey], `${TIER_BY_KEY[sizeKey].label} 单题最坏 ${worst}ms > ${BUDGET[sizeKey]}ms`);
-    assert.ok(total <= SEEDS.length * BUDGET[sizeKey], `${TIER_BY_KEY[sizeKey].label} 40 题共 ${total}ms`);
+    assert.ok(worst <= NODE_CAP[sizeKey],
+      `${TIER_BY_KEY[sizeKey].label} 单题最坏 ${worst} 节点 > ${NODE_CAP[sizeKey]}`);
+    assert.ok(total <= NODE_TOTAL_CAP[sizeKey],
+      `${TIER_BY_KEY[sizeKey].label} 40 题共 ${total} 节点 > ${NODE_TOTAL_CAP[sizeKey]}`);
+    // 松到只防一件事：算法塌成指数或者死循环。它不承担"压机器性能"的职责。
+    assert.ok(Date.now() - t0 < 60_000, `${TIER_BY_KEY[sizeKey].label} 四十题跑了超过一分钟`);
   }
 });
 
