@@ -26,6 +26,7 @@ const PLAN = [
   { kind: 'hitori', size: 6 },
   { kind: 'slant', size: 6 },
   { kind: 'shikaku', size: 6 },
+  { kind: 'dominosa', size: 4 },
 ].filter((p) => !process.env.KINDS || process.env.KINDS.split(',').includes(p.kind));
 
 // ---- 页面侧：状态读取与"该怎么点" ------------------------------------------------
@@ -127,6 +128,28 @@ window.__t = {
       for (const b of boxes.values()) {
         if (b.x0 === b.x1 && b.y0 === b.y1) steps.push({ mode: 'tap', cells: [[b.x0, b.y0]] }, { mode: 'tap', cells: [[b.x0, b.y0]] });
         else steps.push({ mode: 'drag', cells: [[b.x0, b.y0], [b.x1, b.y1]] });
+      }
+      return { steps, total: spec.par };
+    }
+    if (kind === 'dominosa') {
+      // 一块骨牌两步成交：横着的走"按住拖过两格"（down→move→up），竖着的走"点两下"
+      //（定锚点 → 点搭档），两条手势都真点到像素上，一个都不许调引擎方法。
+      // 起手再拿副笔在一条**不在题解里**的横界线上划一道「不许配对」：副笔是记事、不收账，
+      // 所以"没用提示该给三星"那条读到的 moves 仍恰好等于 par —— 划了线还三星才是它该有的样子。
+      const w = spec.w;
+      const xy = (i) => [i % w, (i - i % w) / w];
+      const sol = spec.solution;
+      const steps = [];
+      for (let i = 0; i < sol.length; i++) {
+        const j = i % w + 1 < w ? i + 1 : -1;
+        if (j >= 0 && sol[i] !== j && sol[j] !== i) {
+          steps.push({ mode: 'tap', cells: [xy(i)], pen: 1 }, { mode: 'tap', cells: [xy(j)], pen: 1 });
+          break;
+        }
+      }
+      for (const [x1, y1, x2, y2] of spec.dominoes) {
+        if (y1 === y2) steps.push({ mode: 'drag', cells: [[x1, y1], [x2, y2]], pen: 0 });
+        else steps.push({ mode: 'tap', cells: [[x1, y1]], pen: 0 }, { mode: 'tap', cells: [[x2, y2]], pen: 0 });
       }
       return { steps, total: spec.par };
     }
@@ -398,6 +421,16 @@ async function main() {
     if (SHOTS) await snap(`${p.kind}.png`);
     const rep = await js(`window.__t.report(window.nikoli.byId('${p.kind}'), ${p.size})`);
     ok(`${p.kind}：一路点到通关并进结算屏`, rep.solved && rep.screen === 'result', rep);
+    if (p.kind === 'dominosa') {
+      // 副笔那道界线也得是真指针打出来的：引擎门口那支探针记到一次 btn=1 且返回 true，
+      // 才说明"切到副笔 → 点两下"这条手势真的划出了记事，而不是我在页面里替它调的方法。
+      const bans = await js(`(window.__t.log || []).filter((r) => r[0] === 'down' && r[3] === 1 && r[4] === 1).length`);
+      const marked = await js(`(() => { const e = window.__t.state().engine; let n = 0;`
+        + ' for (let y = 0; y < e.board.rows; y++) for (let x = 0; x < e.board.cols; x++) {'
+        + ' if (x + 1 < e.board.cols && e.isBanned(x, y, x + 1, y)) n++;'
+        + ' if (y + 1 < e.board.rows && e.isBanned(x, y, x, y + 1)) n++; } return n; })()');
+      ok('dominosa：副笔的界线是 pointerdown 打出来的，且真的落在盘上', bans >= 1 && marked >= 1, { bans, marked });
+    }
     // 布局漂移：一局之中画布只该在进局时定一次尺寸。落子过程中还变，就是
     // "内容撑容器 → 容器量内容"的反馈环又接上了（宽屏 flex 版踩过）。
     const trace = await js(`window.__t.trace || []`);

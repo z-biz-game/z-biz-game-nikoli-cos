@@ -25,7 +25,7 @@ import assert from 'node:assert/strict';
 import dominosa, {
   generate, create, validate, logicSolve, countSolutions, plant, labelNums, frozenSpec, tierOf, FREE,
 } from '../js/puzzles/dominosa.js';
-import { hashSeed, rngFrom } from '../js/core/rng.js';
+import { rngFrom } from '../js/core/rng.js';
 
 const TIERS = dominosa.sizes.map((s) => s.key);
 const SEEDS = (tag, k = 10) => Array.from({ length: k }, (_, i) => `${tag}|${i}`);
@@ -382,16 +382,9 @@ test('确定性：同 seed 同档位两次 generate 逐字节同题，换 seed �
   }
 });
 
-test('每日题面尺寸轮转：28 天里三档都轮得到（按 hashSeed 的口径复算）', () => {
-  const sizes = dominosa.sizes;
-  const hit = new Map(sizes.map((s) => [s.key, 0]));
-  for (let d = 1; d <= 28; d++) {
-    const day = `2026-09-${String(d).padStart(2, '0')}`;
-    const seed = `nikoli-daily|${day}|dominosa`;          // registry 的 dailySeed 口径，不 import 它
-    hit.set(sizes[hashSeed(seed) % sizes.length].key, (hit.get(sizes[hashSeed(seed) % sizes.length].key) || 0) + 1);
-  }
-  for (const [key, n] of hit) assert.ok(n > 0, `${key}×${key + 1} 在 28 天里一次都没轮到：${[...hit.entries()]}`);
-});
+// 每日档位的轮转不在这里复算：接线之前这条是照 registry 的公式手抄一遍的自证 —— registry.js 改了
+// 公式它照样绿，生产却在轮转别的东西。现在由 test/registry.test.mjs 拿真实的 dailySpec() 对每个
+// KINDS 成员断言（『档位真的在轮转』+『加玩法不改别人的排期』两条），dominosa 一注册就自动在内。
 
 // ---- 4. 手势与账本 ------------------------------------------------------------------------
 

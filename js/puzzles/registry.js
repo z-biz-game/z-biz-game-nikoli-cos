@@ -1,5 +1,7 @@
 // 玩法注册表：引擎模块只提供题与棋盘，这里补上"外壳需要知道、引擎不该关心"的那部分
-// —— 首页图标、副笔在这玩法里是什么意思。新增玩法只需要加一个文件加一行。
+// —— 首页图标、副笔在这玩法里是什么意思。加一个玩法在本文件里就三处：上面一条 import、
+// SHELL 一条（glyph/dual/primary/secondary/tip）、KINDS 末尾一个；再往仓外还得跟上
+// tools/playtest.mjs 的 PLAN 与那条"该怎么点"，否则新玩法进不了 CI 这道门。
 
 import { hashSeed } from '../core/rng.js';
 import nonogram from '../puzzles/nonogram.js';
@@ -12,6 +14,7 @@ import akabane from '../puzzles/akabane.js';
 import hitori from '../puzzles/hitori.js';
 import slant from '../puzzles/slant.js';
 import shikaku from '../puzzles/shikaku.js';
+import dominosa from '../puzzles/dominosa.js';
 
 const SHELL = {
   nonogram: { glyph: '▩', dual: true, primary: '涂黑', secondary: '画叉', tip: '按住拖动可以一次涂一排' },
@@ -24,9 +27,10 @@ const SHELL = {
   hitori: { glyph: '◣', dual: true, primary: '划黑', secondary: '点小圆点', tip: '划掉的格子互不相接；留下的数字行与列里不许撞' },
   slant: { glyph: '╱', dual: true, primary: '画斜线', secondary: '记一笔', tip: '点一下是 "/"、再点换 "\\"；按住拖动可以把同方向一路画过去' },
   shikaku: { glyph: '▦', dual: true, primary: '围一间', secondary: '擦掉', tip: '拖出一个长方形把它围成一间，也可以点两下选两个对角；一间只能有一个数字' },
+  dominosa: { glyph: '▬', dual: true, primary: '连一块', secondary: '划界线', tip: '点一格再点它的邻格落一块骨牌，按住拖过两格也算一手；点到已成的那块就整块擦掉；副笔两下是在两格之间划一条「不许配对」的界线（记事不收步，拖动不算副笔）' },
 };
 
-export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe, tents, akabane, hitori, slant, shikaku]
+export const KINDS = [nonogram, numberlink, lightsout, pegsolitaire, nurikabe, tents, akabane, hitori, slant, shikaku, dominosa]
   .map((k) => ({ ...k, shell: SHELL[k.id] }));
 
 export const byId = (id) => KINDS.find((k) => k.id === id) || null;
