@@ -13,6 +13,13 @@ const shape = {
 
 let cache = null;
 
+// The disk and the import box are both player-editable, so nothing read back is trusted to be
+// an object: `{"records":7}` used to pass the import guard and then crash the win handler with
+// "Cannot create property 'nonogram:5' on number '7'" — on every reload, because the bad save
+// was still what read() picked up.
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const objOr = (v, fallback) => (isObj(v) ? v : fallback);
+
 function blank() {
   return {
     settings: { ...shape.settings },
@@ -31,11 +38,11 @@ function read() {
     try {
       const p = JSON.parse(raw);
       cache = {
-        settings: { ...shape.settings, ...(p.settings || {}) },
-        records: p.records || {},
-        daily: p.daily || {},
-        stats: { ...shape.stats, ...(p.stats || {}) },
-        streak: { ...shape.streak, ...(p.streak || {}) },
+        settings: { ...shape.settings, ...objOr(p.settings, {}) },
+        records: objOr(p.records, {}),
+        daily: objOr(p.daily, {}),
+        stats: { ...shape.stats, ...objOr(p.stats, {}) },
+        streak: { ...shape.streak, ...objOr(p.streak, {}) },
       };
       return cache;
     } catch { /* corrupt or written by a newer build — start clean */ }
@@ -109,13 +116,13 @@ export const store = {
   exportText() { return JSON.stringify(read()); },
   importText(text) {
     const p = JSON.parse(text);
-    if (!p || typeof p !== 'object' || !p.records) throw new Error('not a nikoli save');
+    if (!isObj(p) || !isObj(p.records)) throw new Error('not a nikoli save');
     cache = {
-      settings: { ...shape.settings, ...(p.settings || {}) },
+      settings: { ...shape.settings, ...objOr(p.settings, {}) },
       records: p.records,
-      daily: p.daily || {},
-      stats: { ...shape.stats, ...(p.stats || {}) },
-      streak: { ...shape.streak, ...(p.streak || {}) },
+      daily: objOr(p.daily, {}),
+      stats: { ...shape.stats, ...objOr(p.stats, {}) },
+      streak: { ...shape.streak, ...objOr(p.streak, {}) },
     };
     write();
   },

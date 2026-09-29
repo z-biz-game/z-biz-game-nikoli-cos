@@ -121,6 +121,16 @@ test('validate 逐条咬合：帐篷贴角、树没帐、行超数、帐上树�
   assert.equal(validate(e, e.solution), false, '帐篷搭进树坑还判合法');
 });
 
+// 上面那张斜角盘同时违了行线索（第二顶落在了线索为 0 的行里），所以"引擎把八邻域那条删掉"
+// 也照样全绿 —— 破坏试验实测过。这条把负例拆干净：两张盘只差"两顶帐是否斜角相贴"，
+// 行列账、树各认一顶、帐不落在树坑里、没有孤帐，四条全都满足。
+test('斜角相贴要能单独被判死：与真题只差帐篷滑了一格', () => {
+  const bad = hand(['TA..', '..A.', '..T.', '....'], [1, 1, 0, 0], [0, 1, 1, 0]);
+  assert.equal(bruteOk(bad, bad.solution), false, '第二套实现都不该认这顶贴角的帐');
+  assert.equal(validate(bad, bad.solution), false, '引擎放行了斜角相贴：八邻域那条规则没有用例在守');
+  assert.equal(validate(HAND_OK, HAND_OK.solution), true, '对照组：同一棵树旁把帐篷挪回 (2,3) 就合法');
+});
+
 test('两层实现对拍：生成盘 + 挖一格反例，判到合法的必须是同一批', () => {
   let agree = 0;
   for (const key of TIERS) {
