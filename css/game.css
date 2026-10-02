@@ -64,12 +64,13 @@ body {
   border: 1px solid var(--rule); border-radius: 999px; padding: 4px 10px; white-space: nowrap;
 }
 .icon {
-  width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--rule);
-  background: var(--card); color: var(--ink-soft); font-size: 15px; cursor: pointer;
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--rule);
+  background: var(--card); color: var(--ink-soft); font-size: 16px; cursor: pointer;
   display: grid; place-items: center; transition: transform .12s ease, color .12s ease;
 }
 .icon:active { transform: scale(.92); }
 .icon.off { color: var(--ink-faint); text-decoration: line-through; }
+.icon.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 
 /* ── 舞台 / 屏幕切换 ─────────────────────────────────── */
 #stage { flex: 1; min-height: 0; position: relative; }
@@ -166,6 +167,17 @@ p { margin: 0; }
   animation: flash .9s ease-out forwards;
 }
 @keyframes flash { from { opacity: 0; transform: scale(.96); } 22% { opacity: 1; } to { opacity: 0; transform: scale(1.02); } }
+
+/* 暂停遮罩：整块棋盘可点继续。display:grid 会盖掉 UA 的 [hidden]，这条必须自己写。 */
+.veil {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-content: center;
+  gap: 8px; border: 0; cursor: pointer; font-family: inherit; color: var(--ink);
+  background: rgba(244, 239, 227, .86);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.veil[hidden] { display: none; }
+.veil b { font-size: 24px; letter-spacing: .18em; }
+.veil i { font-style: normal; font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
 
 .statusline { display: flex; align-items: center; gap: 10px; padding: 0 2px; }
 .progress { flex: 1; height: 5px; border-radius: 999px; background: var(--paper-deep); border: 1px solid var(--rule); overflow: hidden; }

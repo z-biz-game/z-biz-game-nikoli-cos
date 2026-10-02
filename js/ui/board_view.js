@@ -23,6 +23,7 @@ export class BoardView {
     this.lastCell = null;
     this.winAt = 0;
     this.winFrame = STAMP_FULL;
+    this.paused = false;
     this.tool = 0;
     this.onInput = null;
     this.onFrame = null;
@@ -43,6 +44,7 @@ export class BoardView {
     this.hover = null;
     this.lastCell = null;
     this.dragging = false;
+    this.paused = false;   // 换题不带上局的暂停态，否则新棋盘永远不吃输入
     this.resetWin();
     this.layout();
     this.start();
@@ -87,7 +89,7 @@ export class BoardView {
 
   down(ev) {
     const e = this.engine;
-    if (!e || !this.view) return;
+    if (!e || !this.view || this.paused) return;
     const c = this.cellAt(ev);
     if (!c) return;
     ev.preventDefault();
@@ -107,7 +109,7 @@ export class BoardView {
     const c = this.cellAt(ev);
     this.hover = c;
     this.view.hover = c;
-    if (!this.dragging) return;
+    if (!this.dragging || this.paused) return;   // 暂停中只跟光标，不动引擎
     if (this.lastCell && this.lastCell.x === c.x && this.lastCell.y === c.y) return;
     ev.preventDefault();
     this.lastCell = c;
@@ -145,7 +147,7 @@ export class BoardView {
   }
 
   press(cursor = false) {
-    if (!this.engine || !this.view) return;
+    if (!this.engine || !this.view || this.paused) return;
     const c = cursor ? (this.hover || { x: 0, y: 0 }) : this.hover;
     if (!c) return;
     this.view.hover = c;
@@ -170,6 +172,18 @@ export class BoardView {
     this.running = false;
     if (this.frame) cancelAnimationFrame(this.frame);
     this.frame = null;
+  }
+
+  // 暂停 = 不吃输入 + 停掉 rAF（render 一帧都不再进，动画与 HUD 一起冻住）。
+  // 结算动画正在跑时只置输入闸门，不停帧 —— 否则那枚章永远盖不完。
+  pause() {
+    this.paused = true;
+    if (!this.winAt) this.stop();
+  }
+
+  resume() {
+    this.paused = false;
+    if (this.engine && !this.running) this.start();
   }
 
   render(t) {

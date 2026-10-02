@@ -1,7 +1,8 @@
 // 应用外壳：路由、计时、记分、输入设备无关性都在这里。棋盘内部的一切属于引擎。
 
 import { store } from '../core/storage.js';
-import { sfx, haptic } from '../core/audio.js';
+import { initReduceMotion, reduceMotionTouched, watchReduceMotion } from '../core/motion.js';
+import { sfx, haptic, isMuted, setMuted, toggleMuted, audioState } from '../core/audio.js';
 import { todayKey } from '../core/rng.js';
 import { KINDS, byId, dailySpec, dailySeed } from '../puzzles/registry.js';
 import { BoardView } from './board_view.js';
@@ -44,7 +45,8 @@ const S = {
   hints: 0,
   startedAt: 0,
   elapsed: 0,
-  paused: false,
+  paused: false,     // 玩家按下的暂停，或切到后台的自动暂停
+  finished: false,   // 已解出：结算动画期间也算 paused，但切回前台不许把它复活
   tool: 0,
   lastSecond: -1,
 };
@@ -189,6 +191,7 @@ function start(kind, sizeKey, index, daily) {
   S.startedAt = performance.now();
   S.elapsed = 0;
   S.paused = false;
+  S.finished = false;
   S.lastSecond = -1;
 
   view.attach(S.engine);
@@ -203,6 +206,7 @@ function start(kind, sizeKey, index, daily) {
   $('#tool-primary').textContent = kind.shell.primary || '主笔';
   $('#tool-secondary').textContent = kind.shell.secondary || '副笔';
   $$('#tool-toggle button').forEach((b) => b.classList.toggle('on', Number(b.dataset.tool) === S.tool));
+  syncPauseUI();
   show('play');
   updateHud();
   history.replaceState(null, '', `#/p/${kind.id}/${sizeKey}/${daily ? 'd' : index}`);
@@ -231,6 +235,74 @@ function updateHud() {
   $$('[data-action=redo]').forEach((b) => { b.disabled = !e.canRedo(); });
 }
 
+// ---- 暂停 -----------------------------------------------------------------------
+
+// 暂停的遮罩只盖住画布，下面那排按钮还在。凡是会改棋盘状态的动作都得自己挡一下。
+// 结算面板上 S.paused 也是 true（finish() 置的），但那一局已经打完了，按钮当然能用。
+const inputLocked = () => S.paused && !S.finished && !$('#play').hidden;
+
+// 暂停要做三件事：计时结算进 S.elapsed（不再吃墙上时间）、rAF 停掉（仿真与动画一帧都不推进）、
+// 输入闸门关掉（棋盘不再改引擎状态）。恢复时只重开 startedAt 与循环，引擎状态一个字节都不动。
+function setPaused(next) {
+  if (!S.kind || !view) return;
+  if (S.paused === next) { syncPauseUI(); return; }
+  if (next) {
+    S.elapsed = elapsedMs();
+    S.paused = true;
+    view.pause();
+  } else {
+    S.startedAt = performance.now();
+    S.paused = false;
+    view.resume();
+  }
+  syncPauseUI();
+  updateHud();
+}
+
+function syncPauseUI() {
+  const veil = $('#pause-veil');
+  const btn = $('#pause-btn');
+  if (veil) veil.hidden = !S.paused;
+  if (btn) {
+    btn.textContent = S.paused ? '继续' : '暂停';
+    btn.setAttribute('aria-pressed', S.paused ? 'true' : 'false');
+  }
+}
+
+// ---- 全屏 -----------------------------------------------------------------------
+
+const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+
+function syncFullscreenUI() {
+  const on = !!fsElement();
+  const btn = $('#fullscreen-btn');
+  if (btn) {
+    btn.classList.toggle('on', on);
+    btn.textContent = on ? '⤡' : '⤢';
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', on ? '退出全屏' : '全屏');
+    btn.title = on ? '退出全屏 (F)' : '全屏 (F)';
+  }
+  document.body.classList.toggle('is-fullscreen', on);
+}
+
+// iOS Safari 至今不给网页 requestFullscreen：那里"全屏"的正解是添加到主屏幕
+// （manifest + apple-mobile-web-app-capable 已经备好），所以这条只提示、不静默失败。
+function toggleFullscreen() {
+  const doc = document;
+  if (fsElement()) {
+    const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+    if (exit) Promise.resolve(exit.call(doc)).catch(() => toast('退出全屏被系统挡下了'));
+    syncFullscreenUI();
+    return;
+  }
+  const el = doc.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) { toast('这台设备不开放网页全屏 —— 用"添加到主屏幕"全屏打开'); return; }
+  Promise.resolve(req.call(el, { navigationUI: 'hide' }))
+    .catch(() => toast('全屏被系统挡下了（通常是没在用户手势里）'));
+}
+
 // ---- 结算 -----------------------------------------------------------------------
 
 function finish() {
@@ -238,6 +310,7 @@ function finish() {
   const e = S.engine;
   const ms = elapsedMs();
   S.paused = true;
+  S.finished = true;
   const frame = S.hints ? STAMP_FAINT : STAMP_FULL;
   view.win(frame);
   sfx.win();
@@ -324,12 +397,20 @@ function openHowto(kind) {
 
 function syncSettings() {
   $$('#settings input[data-setting]').forEach((i) => { i.checked = !!store.settings[i.dataset.setting]; });
-  $('#sound-btn').classList.toggle('off', !store.settings.sound);
+  const muted = isMuted();
+  const btn = $('#sound-btn');
+  if (btn) {
+    btn.classList.toggle('off', muted);
+    btn.setAttribute('aria-pressed', muted ? 'false' : 'true');
+    btn.setAttribute('aria-label', muted ? '声音已关' : '声音已开');
+    btn.title = muted ? '声音已关 (M)' : '声音 (M)';
+  }
 }
 
 // ---- 装配 -----------------------------------------------------------------------
 
 export function boot() {
+  initReduceMotion();   // 必须在第一次 layout 之前：view.reduce 是在 layout 里算的
   view = new BoardView($('#board'), $('#board-wrap'));
   // 落子音每一步都放；错题检查要跑一遍求解器，只在抬手时算，15×15 才不掉帧
   view.onInput = (strokeEnd) => {
@@ -349,10 +430,13 @@ export function boot() {
     if (a === 'home') location.hash = '#/';
     else if (a === 'settings') { syncSettings(); $('#settings').showModal(); }
     else if (a === 'howto-global') openHowto(KINDS[0]);
+    else if (a === 'pause') setPaused(!S.paused);
+    else if (a === 'toggle-fullscreen') toggleFullscreen();
     else if (a === 'toggle-sound') {
-      store.set('sound', !store.settings.sound);
+      const wasMuted = isMuted();
+      toggleMuted();
       syncSettings();
-      sfx.click();
+      if (wasMuted) sfx.click();   // 取消静音才补一声；静音那一下必须无声
     } else if (a === 'undo' && doUndo()) { /* played sound */ }
     else if (a === 'redo' && doRedo()) { /* ditto */ }
     else if (a === 'hint') doHint();
@@ -380,7 +464,11 @@ export function boot() {
 
   $$('#settings input[data-setting]').forEach((i) => {
     i.onchange = () => {
-      store.set(i.dataset.setting, i.checked);
+      if (i.dataset.setting === 'sound') setMuted(!i.checked);
+      else {
+        if (i.dataset.setting === 'reduceMotion') reduceMotionTouched(true);
+        store.set(i.dataset.setting, i.checked);
+      }
       syncSettings();
       view.layout();
     };
@@ -388,22 +476,32 @@ export function boot() {
 
   window.addEventListener('hashchange', route);
   document.addEventListener('visibilitychange', () => {
-    if (!S.kind || $('#play').hidden) return;
-    if (document.hidden) {
-      S.elapsed = elapsedMs();
-      S.paused = true;
-    } else {
-      S.startedAt = performance.now();
-      S.paused = false;
-    }
+    if (!S.kind || $('#play').hidden || S.finished) return;
+    setPaused(!!document.hidden);
   });
+  for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) {
+    document.addEventListener(ev, syncFullscreenUI);
+  }
+  syncFullscreenUI();
 
   window.addEventListener('keydown', (ev) => {
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if ($('#settings').open || $('#howto').open) return;
     const k = ev.key;
     if (k === 'Escape') { location.hash = '#/'; return; }
+    // 全局键：首页也要能用
+    if (k === 'm' || k === 'M') {
+      ev.preventDefault();
+      const wasMuted = isMuted();
+      toggleMuted();
+      syncSettings();
+      if (wasMuted) sfx.click();
+      return;
+    }
+    if (k === 'f' || k === 'F') { ev.preventDefault(); toggleFullscreen(); return; }
+    if (k === '?') { ev.preventDefault(); openHowto(S.kind || KINDS[0]); return; }
     if ($('#play').hidden) return;
+    if (k === 'p' || k === 'P') { ev.preventDefault(); setPaused(!S.paused); return; }
     const nav = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k];
     if (nav) { view.nudge(...nav); ev.preventDefault(); return; }
     if (k === ' ' || k === 'Enter') { view.press(true); ev.preventDefault(); return; }
@@ -424,7 +522,7 @@ export function boot() {
 }
 
 function doUndo() {
-  if (!S.engine || !S.engine.undo()) return false;
+  if (inputLocked() || !S.engine || !S.engine.undo()) return false;
   sfx.undo();
   view.resetWin();
   updateHud();
@@ -432,14 +530,14 @@ function doUndo() {
 }
 
 function doRedo() {
-  if (!S.engine || !S.engine.redo()) return false;
+  if (inputLocked() || !S.engine || !S.engine.redo()) return false;
   sfx.tap();
   updateHud();
   return true;
 }
 
 function doHint() {
-  if (!S.engine || S.paused) return;
+  if (!S.engine || inputLocked()) return;
   const h = S.engine.hint();
   if (!h) { toast('这一步推不出来了 —— 要么已经解完，要么得先退回一步'); sfx.bad(); return; }
   S.hints++;
@@ -449,7 +547,7 @@ function doHint() {
 }
 
 function doRestart() {
-  if (!S.kind) return;
+  if (!S.kind || inputLocked()) return;
   start(S.kind, S.sizeKey, S.index, S.daily);
   sfx.erase();
 }
@@ -464,4 +562,6 @@ export const debug = {
   todayKey,
   elapsed: elapsedMs,
   home: () => { location.hash = '#/'; },
+  setPaused,
+  audioState,
 };

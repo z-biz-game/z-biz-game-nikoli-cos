@@ -40,7 +40,8 @@
     </button>
     <div class="topbar-right">
       <span id="streak-chip" class="chip" title="连续做每日挑战的天数">— 天</span>
-      <button class="icon" data-action="toggle-sound" id="sound-btn" aria-label="声音">♪</button>
+      <button class="icon" data-action="toggle-sound" id="sound-btn" aria-label="声音" aria-pressed="true" title="声音 (M)">♪</button>
+      <button class="icon" data-action="toggle-fullscreen" id="fullscreen-btn" aria-label="全屏" aria-pressed="false" title="全屏 (F)">⤢</button>
       <button class="icon" data-action="settings" aria-label="设置">⋯</button>
     </div>
   </header>
@@ -91,6 +92,10 @@
       <div id="board-wrap">
         <canvas id="board"></canvas>
         <div id="flash" class="flash" hidden></div>
+        <button id="pause-veil" class="veil" data-action="pause" hidden>
+          <b>已暂停</b>
+          <i>点这里继续 · P</i>
+        </button>
       </div>
 
       <div class="statusline">
@@ -104,6 +109,7 @@
           <button data-tool="1"><span id="tool-secondary">副笔</span></button>
         </div>
         <div class="spacer"></div>
+        <button class="ctl" data-action="pause" id="pause-btn" title="暂停 (P)">暂停</button>
         <button class="ctl" data-action="undo" title="撤销 (Z)">↺</button>
         <button class="ctl" data-action="redo" title="重做 (Shift+Z)">↻</button>
         <button class="ctl hint" data-action="hint" title="提示 (H)">提示 <b id="hint-count">0</b></button>

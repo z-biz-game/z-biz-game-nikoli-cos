@@ -26,7 +26,6 @@ export const T = {
   font: '"Songti SC", "Noto Serif SC", Georgia, "Times New Roman", serif',
   // paper.js label() picks this for every clue, counter and digit on the board.
   mono: '"SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace',
-  mono: '"SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace',
 };
 
 // Numberlink pairs are distinguished by hue; adding a printed digit keeps them

@@ -1,14 +1,22 @@
 // Synthesised sound only — no audio files in the repo. The context is created lazily
 // on the first gesture because browsers refuse to start audio before one.
+//
+// 静音是**停掉整条音频链路**：ctx.suspend() + 一个振荡器节点都不许再建。
+// 只把 master gain 设 0 是假静音 —— 上下文还在跑，解锁与延迟队列照旧出声。
 
 import { store } from './storage.js';
 
 let ctx = null;
 let master = null;
 
+export const isMuted = () => !store.settings.sound;
+
 function ensure() {
-  if (ctx) return ctx;
-  if (!store.settings.sound) return null;
+  if (isMuted()) return null;
+  if (ctx) {
+    if (ctx.state === 'suspended') ctx.resume().catch(() => { /* 手势之前起不来，正常 */ });
+    return ctx;
+  }
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   ctx = new AC();
@@ -16,6 +24,30 @@ function ensure() {
   master.gain.value = 0.5;
   master.connect(ctx.destination);
   return ctx;
+}
+
+// 切换静音态要把已经活着的上下文真的停/续；没建过上下文就什么都不用做。
+function applyMute() {
+  if (!ctx) return;
+  try {
+    if (isMuted()) { if (ctx.state === 'running') ctx.suspend().catch(() => {}); }
+    else if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  } catch { /* 旧 Safari 上 suspend 可能是同步抛错，忽略 */ }
+}
+
+export function setMuted(next) {
+  store.set('sound', !next);
+  applyMute();
+  return next;
+}
+
+export function toggleMuted() {
+  return setMuted(!isMuted());
+}
+
+// 供探针与设置面板读：上下文到底停没停
+export function audioState() {
+  return ctx ? ctx.state : isMuted() ? 'muted-idle' : 'idle';
 }
 
 function tone({ f = 440, to = f, dur = 0.09, type = 'sine', gain = 0.15, delay = 0 }) {
