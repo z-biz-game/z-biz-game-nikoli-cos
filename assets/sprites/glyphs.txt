@@ -1,0 +1,13 @@
+# 由 assets/gen/make_art.py 生成，勿手改。
+# 横向 atlas：每格 120px，第 i 格对应下面第 i 个玩法 id。
+nonogram
+numberlink
+lightsout
+pegsolitaire
+nurikabe
+tents
+akabane
+hitori
+slant
+shikaku
+dominosa
