@@ -19,6 +19,11 @@ let cache = null;
 // was still what read() picked up.
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const objOr = (v, fallback) => (isObj(v) ? v : fallback);
+const boolOr = (v, fallback) => (typeof v === 'boolean' ? v : fallback);
+// 计数与纪录只有"非负有限数"这一种合法形状。字符串、负数、Infinity、NaN 一律回 0：
+// 留着它们，下一次 `prev.solves + 1` 就写成 NaN，然后整张结算面板跟着谎。
+const countOr = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+const strOr = (v) => (typeof v === 'string' ? v : '');
 
 function blank() {
   return {
@@ -30,20 +35,41 @@ function blank() {
   };
 }
 
+function normalize(p) {
+  const records = {};
+  for (const [id, v] of Object.entries(objOr(p.records, {}))) {
+    if (!isObj(v)) continue;   // 一条记录写成 7 / "x" / null：丢掉这一条，别丢整张表
+    records[id] = { bestMs: countOr(v.bestMs), bestMoves: countOr(v.bestMoves), solves: countOr(v.solves), noHintSolves: countOr(v.noHintSolves) };
+  }
+  const daily = {};
+  for (const [day, v] of Object.entries(objOr(p.daily, {}))) {
+    if (!isObj(v)) continue;   // markDaily 要往这一行上写属性，非对象会在点每日挑战时当场抛
+    const row = {};
+    for (const [mode, done] of Object.entries(v)) if (done) row[mode] = true;
+    if (Object.keys(row).length) daily[day] = row;
+  }
+  const st = objOr(p.stats, {});
+  const sk = objOr(p.streak, {});
+  const se = objOr(p.settings, {});
+  return {
+    settings: {
+      sound: boolOr(se.sound, shape.settings.sound),
+      reduceMotion: boolOr(se.reduceMotion, shape.settings.reduceMotion),
+    },
+    records,
+    daily,
+    stats: { solves: countOr(st.solves), noHint: countOr(st.noHint), hints: countOr(st.hints) },
+    streak: { day: strOr(sk.day), count: countOr(sk.count), best: countOr(sk.best) },
+  };
+}
+
 function read() {
   if (cache) return cache;
   let raw = null;
   try { raw = localStorage.getItem(KEY); } catch { raw = null; }
   if (raw) {
     try {
-      const p = JSON.parse(raw);
-      cache = {
-        settings: { ...shape.settings, ...objOr(p.settings, {}) },
-        records: objOr(p.records, {}),
-        daily: objOr(p.daily, {}),
-        stats: { ...shape.stats, ...objOr(p.stats, {}) },
-        streak: { ...shape.streak, ...objOr(p.streak, {}) },
-      };
+      cache = normalize(JSON.parse(raw));
       return cache;
     } catch { /* corrupt or written by a newer build — start clean */ }
   }
@@ -116,14 +142,9 @@ export const store = {
   exportText() { return JSON.stringify(read()); },
   importText(text) {
     const p = JSON.parse(text);
+    // 导入是玩家主动做的事，认不出脸就拒（读盘反过来：能救的一律救）
     if (!isObj(p) || !isObj(p.records)) throw new Error('not a nikoli save');
-    cache = {
-      settings: { ...shape.settings, ...objOr(p.settings, {}) },
-      records: p.records,
-      daily: objOr(p.daily, {}),
-      stats: { ...shape.stats, ...objOr(p.stats, {}) },
-      streak: { ...shape.streak, ...objOr(p.streak, {}) },
-    };
+    cache = normalize(p);
     write();
   },
   reset() { cache = blank(); write(); },

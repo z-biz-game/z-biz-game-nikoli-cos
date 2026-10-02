@@ -119,9 +119,11 @@ test('盘上是坏的或半截的也要能玩：回落成可用形状，落子�
     const st = mod.store.statsObj();
     assert.equal(typeof st.solves, 'number', `${tag}: stats 没回落成数字`);
     assert.equal(st.solves >= 0, true);
-    // 这一句同时钉住两件事：半截盘里那条真的纪录要留下，其余几种坏盘都得读不出记录。
+    // 这一句同时钉住两件事：半截盘里那条真的纪录要留下（缺的字段补 0，不是原样吐回一个
+    // 半截对象——那会让下一次 `prev.solves + 1` 变成 NaN），其余几种坏盘都得读不出记录。
     assert.equal(JSON.stringify(mod.store.record('tents:6')),
-      JSON.stringify(tag === 'half' ? { solves: 3 } : null), `${tag}: records 的回落不对`);
+      JSON.stringify(tag === 'half' ? { bestMs: 0, bestMoves: 0, solves: 3, noHintSolves: 0 } : null),
+      `${tag}: records 的回落不对`);
     assert.deepEqual(Object.keys(mod.store.settings).sort(), ['reduceMotion', 'sound'], `${tag}: settings 形状不对`);
     mod.store.set('sound', false);                    // 坏了也要能继续写
     assert.equal(JSON.parse(disk.get(KEY)).settings.sound, false, `${tag}: 修不回来，下次还是崩`);
@@ -140,6 +142,49 @@ test('导入框里的垃圾必须当场拒绝：{"records":7} 这种"看着像"�
   store.importText('{"records":{"slant:6":{"solves":2}}}');   // 合规的那句要能进
   assert.equal(store.record('slant:6').solves, 2);
   assert.deepEqual(store.statsObj(), { solves: 0, noHint: 0, hints: 0 }, '缺 stats 时不该凭空造数');
+});
+
+test('逐字段清洗：单条记录、每日行、stats、streak、settings 各自灌垃圾都不许变成 NaN', async () => {
+  const cases = [
+    ['record-not-object', '{"records":{"tents:6":7},"settings":{}}'],
+    ['record-wrongtype', '{"records":{"tents:6":{"solves":"3","bestMs":-9,"bestMoves":null,"noHintSolves":1e999}}}'],
+    ['record-nan', '{"records":{"tents:6":{"solves":{"a":1},"bestMs":"NaN"}}}'],
+    ['daily-as-number', '{"daily":{"2026-09-28":5}}'],       // markDaily 往这行上写属性，曾在当场抛
+    ['daily-false', '{"daily":{"2026-09-28":{"tents":false,"slant":"yes"}}}'],
+    ['stats-strings', '{"stats":{"solves":"many","noHint":-1,"hints":[]}}'],
+    ['streak-wrongtype', '{"streak":{"day":true,"count":"3","best":null}}'],
+    ['settings-strings', '{"settings":{"sound":"no","reduceMotion":1}}'],
+  ];
+  for (const [tag, junk] of cases) {
+    const disk = new Map([[KEY, junk]]);
+    globalThis.localStorage = {
+      getItem: (k) => (disk.has(k) ? disk.get(k) : null),
+      setItem: (k, v) => disk.set(k, String(v)),
+      removeItem: (k) => disk.delete(k),
+    };
+    const { store } = await import(`../js/core/storage.js?v=field-${tag}`);
+    for (const [id, r] of Object.entries(JSON.parse(store.exportText()).records)) {
+      for (const [k, v] of Object.entries(r)) {
+        assert.equal(typeof v, 'number', `${tag}: ${id}.${k} 不是数字 —— 记账会变 NaN`);
+        assert.equal(Number.isFinite(v) && v >= 0, true, `${tag}: ${id}.${k}=${v} 越界`);
+      }
+    }
+    const st = store.statsObj();
+    assert.deepEqual(Object.keys(st).sort(), ['hints', 'noHint', 'solves']);
+    for (const v of Object.values(st)) assert.equal(typeof v, 'number', `${tag}: stats ${v}`);
+    const sk = store.streak('2026-09-29');
+    assert.equal(typeof sk.day, 'string', `${tag}: streak.day 不是字符串`);
+    assert.equal(typeof sk.count, 'number', `${tag}: streak.count 不是数字`);
+    assert.equal(typeof store.settings.sound, 'boolean', `${tag}: settings.sound 被原样放过了`);
+    assert.equal(typeof store.settings.reduceMotion, 'boolean', `${tag}: settings.reduceMotion 被原样放过了`);
+    assert.equal(store.record('tents:6') === null || Number.isFinite(store.record('tents:6').solves), true,
+      `${tag}: 那条记录没被清成可用形状`);
+    assert.equal(store.markDaily('2026-09-28', 'tents') >= 0, true, `${tag}: 每日行修不回来`);
+    assert.equal(store.dailyDone('2026-09-28').tents, true, `${tag}: markDaily 写进去的没读回来`);
+    const cur = store.finish('tents:6', { ms: 4000, moves: 30, hints: 0 });
+    assert.equal(cur.solves, 1, `${tag}: 通关记账没落在干净数字上`);
+    assert.equal(cur.bestMs, 4000, `${tag}: 坏 bestMs 挡住了新纪录`);
+  }
 });
 
 test('reset 真清盘，不是只把缓存抹了', async () => {
