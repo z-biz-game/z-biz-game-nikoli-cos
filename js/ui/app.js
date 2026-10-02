@@ -5,6 +5,7 @@ import { sfx, haptic } from '../core/audio.js';
 import { todayKey } from '../core/rng.js';
 import { KINDS, byId, dailySpec, dailySeed } from '../puzzles/registry.js';
 import { BoardView } from './board_view.js';
+import { paintGlyph, paintStamp, onArtReady, STAMP_FULL, STAMP_FAINT } from '../core/art.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -14,6 +15,19 @@ const make = (tag, cls, text) => {
   if (text !== undefined) n.textContent = text;
   return n;
 };
+
+// 题头优先用位图 sprite（一张纸上一格玩法题面），图没到位才退回文字 glyph：
+// 那枚 unicode 字符在缺字体的设备上是豆腐块，但有总比空白强。
+function glyphNode(kind, px, cls) {
+  const canvas = document.createElement('canvas');
+  canvas.className = cls;
+  canvas.style.width = `${px}px`;
+  canvas.style.height = `${px}px`;
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', `${kind.title} 题头`);
+  if (!paintGlyph(canvas, kind.id, px)) return make('span', cls, kind.shell.glyph);
+  return canvas;
+}
 
 const fmt = (ms) => {
   const t = Math.max(0, Math.floor(ms / 1000));
@@ -84,7 +98,7 @@ function renderHome() {
   for (const d of specs) {
     const k = byId(d.kindId);
     const b = make('button', 'daily-cell' + (done[k.id] ? ' done' : ''));
-    b.appendChild(make('span', 'g', k.shell.glyph));
+    b.appendChild(glyphNode(k, 22, 'g'));
     b.appendChild(make('span', 'n', k.title));
     b.appendChild(make('span', 's', sizeLabel(k, d.sizeKey)));
     b.onclick = () => {
@@ -99,7 +113,7 @@ function renderHome() {
   for (const k of KINDS) {
     const card = make('article', 'kind');
     const top = make('div', 'kind-top');
-    top.appendChild(make('span', 'kind-glyph', k.shell.glyph));
+    top.appendChild(glyphNode(k, 44, 'kind-glyph'));
     top.appendChild(make('span', 'kind-latin', k.latin));
     card.appendChild(top);
     const name = make('div');
@@ -224,7 +238,8 @@ function finish() {
   const e = S.engine;
   const ms = elapsedMs();
   S.paused = true;
-  view.win();
+  const frame = S.hints ? STAMP_FAINT : STAMP_FULL;
+  view.win(frame);
   sfx.win();
   haptic(30);
   flashBoard();
@@ -242,7 +257,7 @@ function finish() {
   window.setTimeout(() => {
     $('#result-title').textContent = S.daily ? '今日挑战完成' : '解开了';
     $('#result-sub').textContent = `${S.kind.title} · ${sizeLabel(S.kind, S.sizeKey)} · ${S.kind.latin}`;
-    $('#result-mark').textContent = S.hints ? '◇' : '✦';
+    resultMark(S.hints ? STAMP_FAINT : STAMP_FULL);
     $$('#result-stars i').forEach((n, i) => n.classList.toggle('on', i < stars));
     const rows = $('#result-rows');
     rows.textContent = '';
@@ -269,6 +284,18 @@ function starsOf(st, hints) {
   if (!hints) s++;
   if (!hints && st.par && st.moves <= Math.ceil(st.par * 1.2)) s++;
   return s;
+}
+
+function resultMark(frame) {
+  const host = $('#result-mark');
+  host.textContent = '';
+  const canvas = document.createElement('canvas');
+  canvas.style.width = '58px';
+  canvas.style.height = '58px';
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', frame === STAMP_FULL ? '一次解开的印章' : '用过提示的印章');
+  if (paintStamp(canvas, frame, 58)) host.appendChild(canvas);
+  else host.textContent = frame === STAMP_FULL ? '✦' : '◇';
 }
 
 function flashBoard() {
@@ -392,6 +419,8 @@ export function boot() {
   syncSettings();
   renderHome();
   route();
+  // sprite 是异步进来的：到位后只在首页重画一次，局中不打断正在下的那题
+  onArtReady(() => { if ($('#play').hidden) renderHome(); });
 }
 
 function doUndo() {

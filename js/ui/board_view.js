@@ -3,6 +3,8 @@
 // （鼠标 + 键盘光标）行为一致。
 
 import { store } from '../core/storage.js';
+import { drawStamp, STAMP_FULL } from '../core/art.js';
+import { easeOut } from '../core/paper.js';
 
 const PAD = 10;
 const MIN_CELL = 16;
@@ -20,6 +22,7 @@ export class BoardView {
     this.dragging = false;
     this.lastCell = null;
     this.winAt = 0;
+    this.winFrame = STAMP_FULL;
     this.tool = 0;
     this.onInput = null;
     this.onFrame = null;
@@ -181,17 +184,30 @@ export class BoardView {
       const k = Math.min(1, (t - this.winAt) / 1100);
       if (e.celebrate) e.celebrate(ctx, v, t, k);
       else e.draw(ctx, v, t);
+      this.stamp(ctx, v, k);
     } else {
       e.draw(ctx, v, t);
+      if (this.winAt) this.stamp(ctx, v, 1);   // 减弱动效：静图一枚章，不参与任何动画
     }
     ctx.restore();
   }
 
-  win() {
+  // 印章：k 是 0→1 的进度。前 40% 是"砸下来"（从 1.22 缩到 1 并淡入），之后只留墨迹。
+  stamp(ctx, v, k) {
+    const hit = easeOut(Math.min(1, k / 0.4));
+    const size = Math.min(v.w, v.h) * 0.42 * (1.22 - 0.22 * hit);
+    const cx = v.ox + (v.cols * v.cell) / 2;
+    const cy = v.oy + (v.rows * v.cell) / 2;
+    drawStamp(ctx, cx, cy, size, this.winFrame, 0.35 + 0.55 * hit);
+  }
+
+  win(frame = STAMP_FULL) {
+    this.winFrame = frame;
     this.winAt = performance.now();
   }
 
   resetWin() {
     this.winAt = 0;
+    this.winFrame = STAMP_FULL;
   }
 }

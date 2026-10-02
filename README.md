@@ -4,12 +4,14 @@
 隔离 / 五寸钉 / 数间 / 数邻**。十一种玩法各带一个唯一解生成器和一个真求解器 —— 提示不是写死的剧本，
 而是当场推出来的那一步。
 
-零构建、零运行时依赖、零美术与音频文件：打开 `index.html` 需要的那点东西全在
-`js/` 里，Canvas 2D 画棋盘，WebAudio 合成音效，localStorage 存进度。
+零构建、零运行时依赖：打开 `index.html` 需要的那点东西全在 `js/` 里，Canvas 2D 画棋盘，
+WebAudio 合成音效，localStorage 存进度。位图（应用图标、纸纹、玩法 sprite、社交卡）不下载、
+不手画，由 `assets/gen/make_art.py` 按 `js/core/theme.js` 的同一套配色现生成，改色重跑即可。
 
 ```bash
 node tools/serve.mjs        # → http://127.0.0.1:5173/，然后点开任一档位
 node --test test/*.test.mjs # 269 项引擎单测（不开浏览器）
+npm run art                 # 重画 assets/ 全套位图（需 python3 + Pillow）
 bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 ```
 

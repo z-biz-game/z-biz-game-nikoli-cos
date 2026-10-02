@@ -1,12 +1,13 @@
 {
   "name": "nikoli",
   "version": "1.0.0",
-  "description": "纸上逻辑 Nikoli — 浏览器原生纸笔推理谜题：数织 / 数链 / 点灯 / 孔明棋 / 数墙 / 帐篷 / 黑白 / 隔离 / 五寸钉 / 数间 / 数邻。十一种玩法各带唯一解生成器与真求解器（提示即推理）。零构建、零运行时依赖、无美术与音频文件。",
+  "description": "纸上逻辑 Nikoli — 浏览器原生纸笔推理谜题：数织 / 数链 / 点灯 / 孔明棋 / 数墙 / 帐篷 / 黑白 / 隔离 / 五寸钉 / 数间 / 数邻。十一种玩法各带唯一解生成器与真求解器（提示即推理）。零构建、零运行时依赖：位图资产由 assets/gen/make_art.py 现生成，音频全部合成，不引外部素材。",
   "type": "module",
   "private": true,
   "scripts": {
     "start": "node tools/serve.mjs",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.mjs",
+    "art": "python3 assets/gen/make_art.py",
     "check": "for f in $(git ls-files '*.js' '*.mjs'); do node --check \"$f\" || exit 1; done && echo OK",
     "verify": "bash tools/verify.sh"
   },

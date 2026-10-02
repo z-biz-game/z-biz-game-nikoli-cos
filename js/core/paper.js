@@ -1,7 +1,9 @@
 // Shared canvas primitives for the four boards: paper, rules, ink, lettering.
 // Engines draw their own boards; this file only keeps the hand consistent.
+// 纸的纤维不是画出来的，是 assets/gen/make_art.py 生成的位图，经 core/art.js 加载进来。
 
 import { T } from './theme.js';
+import { paperPattern } from './art.js';
 
 export function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
@@ -22,6 +24,17 @@ export function paper(ctx, x, y, w, h, r = T.radius.md) {
   ctx.fillStyle = T.card;
   roundRect(ctx, x, y, w, h, r);
   ctx.fill();
+  ctx.restore();
+  const pat = paperPattern(ctx);
+  if (!pat) return;
+  // 纤维只往纸里压，不盖住墨：multiply + 低透明度，缩到手机上就剩一层暖白
+  ctx.save();
+  roundRect(ctx, x, y, w, h, r);
+  ctx.clip();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = pat;
+  ctx.fillRect(x, y, w, h);
   ctx.restore();
 }
 

@@ -30,12 +30,16 @@ body {
   font-family: var(--font);
   color: var(--ink);
   background-color: var(--paper);
-  /* 方格纸底纹：细格 12px、粗格 60px，与棋盘格线同一套语汇 */
+  /* 方格纸底纹：最底一层是生成的纸纤维位图（可平铺），上面叠细格 12px、粗格 60px。
+     纸纹走 multiply —— 只把纤维压进纸色，不会把格线糊掉。 */
   background-image:
     repeating-linear-gradient(to right, rgba(154, 147, 127, .16) 0 1px, transparent 1px 12px),
     repeating-linear-gradient(to bottom, rgba(154, 147, 127, .16) 0 1px, transparent 1px 12px),
     repeating-linear-gradient(to right, rgba(154, 147, 127, .26) 0 1px, transparent 1px 60px),
-    repeating-linear-gradient(to bottom, rgba(154, 147, 127, .26) 0 1px, transparent 1px 60px);
+    repeating-linear-gradient(to bottom, rgba(154, 147, 127, .26) 0 1px, transparent 1px 60px),
+    url("../assets/textures/grain-256.png");
+  background-blend-mode: normal, normal, normal, normal, multiply;
+  background-repeat: repeat;
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: manipulation;
@@ -115,6 +119,10 @@ p { margin: 0; }
 .kind:hover { transform: translateY(-3px); }
 .kind-top { display: flex; align-items: baseline; justify-content: space-between; }
 .kind-glyph { font-size: 26px; line-height: 1; }
+.kind-top canvas.kind-glyph { display: block; width: 44px; height: 44px; border-radius: 8px; }
+.daily-cell .g { display: flex; align-items: center; justify-content: center; min-height: 22px; }
+.daily-cell .g canvas { display: block; width: 22px; height: 22px; }
+.result-mark canvas { display: block; width: 58px; height: 58px; margin: 0 auto; }
 .kind-latin { font-family: var(--mono); font-size: 9px; letter-spacing: .16em; color: var(--ink-faint); }
 .kind-name { font-size: 19px; letter-spacing: .06em; }
 .kind-tag { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; min-height: 2.4em; }
