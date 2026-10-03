@@ -267,3 +267,36 @@ body {
 .fixed-bottom, .bottom-bar, .hud-bottom, footer.app-footer {
   padding-bottom: calc(var(--sab) + env(safe-area-inset-bottom, 0px));
 }
+
+/* ── 手机档：44px 指尖下限（390×844 与 320×640 各量一遍）─────────────────────
+   这一屏上 63 枚可见控件有 52 枚低于下限，按形状分四类（数字是实测）：
+     36× .size-chip 36x21 / 49x21 / 100x24   11× .kind-help 22x22
+      3× .icon 34x34                          1× .brand 108x31 · 1× .textlink
+   .kind-help 是玩法卡上唯一一枚「不是开这局」的入口，撑到 44 之后画出来的仍是那枚
+   22px 的圈（描边与底色挪到 ::before），并贴到边角，免得 44 的盒子压住标题那一行。 */
+@media (max-width: 420px) {
+  .brand, .textlink, .ctl, .ghost, .primary, .tool-toggle button { min-height: 44px; }
+  /* 后四枚是开局页看不见的那一层（对局工具条 / 结算卡），只有把隐藏面板全部揭开才量得到：
+     实测 .ctl 44x38、.ghost 56x36、.tool-toggle button 49x35、.primary 324x42——它们靠
+     padding 撑高度，加下限必须同时把内容摆正，否则字会顶在盒子顶上。 */
+  .ctl, .ghost, .primary, .tool-toggle button {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* 改完再量，那两枚（笔/橡皮）成了 38x52：高度被上面那条撑住了，宽度还差 6px——
+     它们只写了一个字的文案，撑宽只能靠下限本身。 */
+  .tool-toggle button { min-width: 44px; }
+  .icon { width: 44px; height: 44px; }
+  .size-chip { min-height: 44px; min-width: 44px; }
+  .kind-help {
+    position: absolute; top: 2px; right: 2px; width: 44px; height: 44px;
+    display: grid; place-items: center; background: none; border: 0;
+    color: var(--ink-faint); font-size: 12px; z-index: 0;
+  }
+  /* z-index:0 让这张按钮自成层叠上下文，::before 那枚 -1 的圈就落在「?」字底下、
+     又不会钻到卡片背景之下去。 */
+  .kind-help::before {
+    content: ''; position: absolute; inset: 11px; z-index: -1; border-radius: 50%;
+    border: 1px solid var(--rule); background: var(--paper);
+  }
+  .kind-help:hover::before { border-color: var(--accent); }
+}
