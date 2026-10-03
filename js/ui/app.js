@@ -1,7 +1,7 @@
 // 应用外壳：路由、计时、记分、输入设备无关性都在这里。棋盘内部的一切属于引擎。
 
 import { store } from '../core/storage.js';
-import { sfx, haptic } from '../core/audio.js';
+import { sfx, haptic, setMuted, isMuted } from '../core/audio.js';
 import { todayKey } from '../core/rng.js';
 import { KINDS, byId, dailySpec, dailySeed } from '../puzzles/registry.js';
 import { BoardView } from './board_view.js';
@@ -297,7 +297,22 @@ function openHowto(kind) {
 
 function syncSettings() {
   $$('#settings input[data-setting]').forEach((i) => { i.checked = !!store.settings[i.dataset.setting]; });
-  $('#sound-btn').classList.toggle('off', !store.settings.sound);
+  const on = !!store.settings.sound;
+  $('#sound-btn').classList.toggle('off', !on);
+  // 开关自己也要说得出当前状态：aria-pressed + 图标互换，不能只有一个 off 样式。
+  $('#sound-btn').setAttribute('aria-pressed', String(on));
+  $('#sound-btn').textContent = on ? '♪' : '✕';
+  $('#sound-btn').setAttribute('aria-label', on ? '声音' : '声音已关');
+}
+
+/** 静音开关：控件状态与真静音（suspend AudioContext）一起翻 */
+function toggleSound() {
+  const on = !store.settings.sound;
+  store.set('sound', on);
+  setMuted(!on);            // 开着 => 取消静音；关掉 => 真挂起 ctx
+  syncSettings();
+  if (on) sfx.click();      // 只在开声时给反馈
+  return on;
 }
 
 // ---- 装配 -----------------------------------------------------------------------
@@ -322,11 +337,7 @@ export function boot() {
     if (a === 'home') location.hash = '#/';
     else if (a === 'settings') { syncSettings(); $('#settings').showModal(); }
     else if (a === 'howto-global') openHowto(KINDS[0]);
-    else if (a === 'toggle-sound') {
-      store.set('sound', !store.settings.sound);
-      syncSettings();
-      sfx.click();
-    } else if (a === 'undo' && doUndo()) { /* played sound */ }
+    else if (a === 'toggle-sound') toggleSound(); else if (a === 'undo' && doUndo()) { /* played sound */ }
     else if (a === 'redo' && doRedo()) { /* ditto */ }
     else if (a === 'hint') doHint();
     else if (a === 'restart') doRestart();
@@ -381,6 +392,7 @@ export function boot() {
     if (nav) { view.nudge(...nav); ev.preventDefault(); return; }
     if (k === ' ' || k === 'Enter') { view.press(true); ev.preventDefault(); return; }
     if (k === 'z' || k === 'Z') { ev.preventDefault(); k === 'Z' ? doRedo() : doUndo(); return; }
+    if (k === 'm' || k === 'M') { ev.preventDefault(); toggleSound(); return; }
     if (k === 'h') { doHint(); return; }
     if (k === 'r') { doRestart(); return; }
     if (k === '1' || k === '2') {
@@ -389,6 +401,8 @@ export function boot() {
     }
   });
 
+  // 存档里是关声的，就让 AudioContext 一开始就是挂起的（重开一局也不自己弹回来）
+  setMuted(!store.settings.sound);
   syncSettings();
   renderHome();
   route();
