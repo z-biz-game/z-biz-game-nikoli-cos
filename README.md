@@ -200,7 +200,7 @@ js/puzzles/registry.js  玩法注册表 + 每日排题（唯一的排题处）
 js/puzzles/CONTRACT.md  引擎契约
 js/core/                rng（hashSeed/mulberry32/todayKey）、storage、audio、paper、theme
 test/                   13 个 node 套件，269 条用例
-tools/serve.mjs         只绑 127.0.0.1 的静态服（默认 :5173） / tools/assemble-site / tools/deploy-set / tools/deploy-set-selftest
+tools/serve.mjs         只绑 127.0.0.1 的静态服（默认 :5173）
 tools/playtest.mjs      CDP 真指针复验（23 个 ok() 落点 → 92 行）
 tools/verify.sh         单测 → 静态服 → 无头通关 → 截图，一把梭
 docs/DESIGN.md          给改代码的人：分层、口径、踩过的坑、数学事实
