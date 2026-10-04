@@ -72,7 +72,7 @@ for i in $(seq 1 40); do
   curl -fsS -m 1 "$BASE" >/dev/null 2>&1 && break
   sleep 0.25
 done
-curl -fsS -m 2 "$BASE" >/dev/null 2>&1 || { note error "静态服没起来（:$SPORT）$(tail -3 /tmp/nikoli-serve.log | tr -d '\r\n')"; echo "静态服没起来：$(cat /tmp/nikoli-serve.log)" >&2; exit 3; }
+curl -fsS -m 2 "$BASE" >/dev/null 2>&1 || { note error "静态服没起来（:${SPORT}）$(tail -3 /tmp/nikoli-serve.log | tr -d '\r\n')"; echo "静态服没起来：$(cat /tmp/nikoli-serve.log)" >&2; exit 3; }
 # 光"端口有人应答"不够：本机同时跑着一堆别的会话的 dev server，绑不上端口时它们会替我们
 # 把 curl 答了，于是整套无头复验其实是在别人的站上找 window.nikoli —— 报出来的却是"页面没起来"。
 # 所以按标题认一句"这是本站"，认不出就换 SPORT 重来，绝不拿别人的页面当证据。
@@ -82,7 +82,7 @@ printf '%s' "$PAGE_HTML" | grep -q "纸上逻辑 Nikoli" || {
   echo "$SPORT 端口上是别人的页面：$(printf '%s' "$PAGE_HTML" | head -c 200)" >&2
   exit 4; }
 [ -s /tmp/nikoli-serve.log ] && grep -qi "EADDRINUSE\|address already in use" /tmp/nikoli-serve.log && {
-  note error "静态服其实没绑上 :$SPORT（EADDRINUSE），答话的是别家进程"; exit 4; }
+  note error "静态服其实没绑上 :${SPORT}（EADDRINUSE），答话的是别家进程"; exit 4; }
 
 # 全新 --user-data-dir 绑定 DevTools 比热档慢，等端点而不是猜 sleep。
 for i in $(seq 1 60); do
