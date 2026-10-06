@@ -70,7 +70,7 @@ bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 | 撤销不退款，评星测得出试错 | `node --test test/*.test.mjs`（各家一条）+ `@无头` | 快照只搬盘面不搬账；照唯一解干净地走一遍，`moves` 必须恰好等于 `par`；`par` 是可证下界（`docs/DESIGN.md` 逐款给了推导） | 破坏试验刀 4（隔离 `undo()` 退款）、刀 6（数织 `par+1`）、刀 7（数邻副笔开始收账）三刀各点名咬住自己那条用例 |
 | 存档能导出再导回来，坏盘不崩 | `node --test test/storage.test.mjs` | 假 localStorage 接上：盘上形状 == 内存形状、`best` 只会变小 / `solves` 只会变大、连续天数按日历日（跨月末）、export→import 在"另一台机器"上逐字节还原、垃圾文本当场拒、`reset` 真清盘、`setItem` 抛错只降级 | 本轮新增这一套（9 条用例）。它当场揭出一条真会崩的路：`{"records":7}` 能过旧的导入校验，然后在**通关那一刻**抛 `Cannot create property … on number '7'`，而且盘已经写坏、刷新就再崩一次 —— `js/core/storage.js` 的 `isObj/objOr` 就是这一轮的修复 |
 | 门面报的玩法数不许还写着上一次那个数 | `node --test test/registry.test.mjs` | `README.md` / `package.json` / `index.html` 里凡「N种玩法 / N种纸笔推理谜题」的汉字数必须等于 `KINDS.length`，且 `index.html` 的 `#/…>` 静态占位必须等于 `/11` | 破坏试验刀 8（把占位改回 `/10`）、刀 9（把本文标题里那个数词抹掉一个字，让 README 报旧数）各红一次；这条还带防空转：找到的报数点少于 3 处就红 |
-| 一个语法错的引擎文件不许上线 | CI 的「语法自检」步（`.github/workflows/ci.yml:19-22`），本地 `npm run check` | `git ls-files '*.js' '*.mjs'` 逐个 `node --check` | 本轮 `npm run check` → `OK`（**37 个文件**，含新增的 `test/storage.test.mjs`） |
+| 一个语法错的引擎文件不许上线 | CI 的「语法自检」步（`.github/workflows/ci.yml` 里 `- name: 语法自检`，一步就是 `run: npm run check`），本地同一条 `npm run check` | `git ls-files '*.js' '*.mjs'` 逐个 `node --check`，文件数由这条 leg 自己印 | 本轮 `npm run check` → `OK 39 files`（含 `test/storage.test.mjs`）。以前 CI 那一步自己抄了一份 `git ls-files | while read` 循环，与 leg 逐字同集合但两份独立漂；上一轮这份文档写的还是 **37 个文件**（磁盘已经 39 了），现在数从命令里出来，文档只抄读数 |
 | 加一道玩法有清单可抄 | `node --test test/registry.test.mjs` + `js/puzzles/CONTRACT.md` | 契约字段齐备（`generate/create/down/move/up/undo/redo/canUndo/canRedo/hint/solved/stats/draw` + 可选 `celebrate`）、`par` 在引擎与题面两处必须是同一个数 | 同上 `tests 7 / fail 0` |
 
 13 道 node 套件合起来本轮是 **269 条用例、0 失败**；浏览器层 **92 行、0 失败**，
@@ -113,7 +113,7 @@ bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 | --- | --- | --- |
 | `start` | `node tools/serve.mjs` | 可跑；默认 `:5173`（`tools/serve.mjs:9`），只绑 `127.0.0.1`，路径带 `..` 逃逸一律 403 |
 | `test` | `node --test test/` | 本机 node v26.8.1 → `tests 259`（改前）/ 现在 269 全绿。**但这是最不该用的一条**：node 22（CI 那台）拿到目录参数时一个文件都找不到，只报一条名为 `test` 的失败，看起来像"测试跑了没通过"，其实一道都没跑（`docs/DESIGN.md` 记了这个坑）。写文档、发命令请一律用 `test/*.test.mjs` 展开形式 |
-| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f"; done` | `OK`；本轮展开成 **37 个文件**（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"） |
+| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f" \|\| exit 1; done` + 末尾把 `git ls-files` 的条数一起印出来 | 本轮 `OK 39 files`（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"；那个 39 是它自己数的，文档只是抄） |
 | `verify` | `bash tools/verify.sh` | `=== ALL GREEN ===`，退出码 0（本文所有读数都来自这条） |
 | `deploy-set` | `node tools/deploy-set.mjs` | 绿：对拷出来的产物提要求（见「上线的到底是哪一批文件」一节） |
 | `deploy-set:selftest` | `node tools/deploy-set-selftest.mjs` | 绿：9 刀逐类打红且点名 + 1 条阴性对照 |

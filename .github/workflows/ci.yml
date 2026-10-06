@@ -16,10 +16,7 @@ jobs:
 
       # 零构建项目也要过语法关：一个语法错的引擎文件在浏览器里只会表现为"点了没反应"。
       - name: 语法自检
-        run: |
-          git ls-files '*.js' '*.mjs' | while read -r f; do
-            node --check "$f" || { echo "FAIL $f"; exit 1; }
-          done
+        run: npm run check
 
       - name: 引擎单测 + 无头真指针通关
         run: bash tools/verify.sh
