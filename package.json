@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "node tools/serve.mjs",
-    "test": "node --test test/",
+    "test": "node --test --test-reporter=spec test/*.test.mjs",
     "check": "for f in $(git ls-files '*.js' '*.mjs'); do node --check \"$f\" || exit 1; done && printf 'OK %s files\\n' \"$(git ls-files '*.js' '*.mjs' | wc -l | tr -d ' ')\"",
     "verify": "bash tools/verify.sh",
     "deploy-set": "node tools/deploy-set.mjs",

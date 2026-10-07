@@ -54,6 +54,10 @@ bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 左列是屏上或本文说出口的话，中列是**本轮真跑过**的命令，右列是它到底在比什么。
 用例数由 `node --test --test-reporter=spec` 打印（`ℹ tests / pass / fail`），
 无头那条由 `tools/verify.sh:118` 打印 `rows: N fail: … errors: …`。
+`npm test` 现在就是 `tools/verify.sh` 里那条显式 glob（本机 269 项，与 README 表里的数同源）：
+以前它写的是目录参数 `node --test test/`，而 `tools/verify.sh` 的头注记录了那个写法在 CI 的
+node 22 runner 上「只报出一条名为 test 的失败，十个文件一个没跑」——本机 node 26 察觉不到这件事，
+所以总闸与 CI 那条腿不能再是两种写法。
 
 | 承诺 | 哪条命令会红 | 它判什么 | 本轮读数 |
 | --- | --- | --- | --- |
