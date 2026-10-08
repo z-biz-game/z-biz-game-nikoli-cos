@@ -9,8 +9,8 @@
 `generate(seed, sizeKey)` 是纯函数，`spec` 能 `JSON.stringify`，引擎不读时钟、
 不采样未播种的随机数、不碰 DOM。这条约束换来三件实打实的东西：
 
-1. 每日挑战不需要服务器 —— 同一天在所有设备上是同一套题（`registry.js` 的
-   `dailySpec(day)` 是唯一的排题处，首页和路由两条入口都得走它，否则玩家会拿到
+1. 每日挑战不需要服务器 —— 同一天在所有设备上是同一套题，唯一的排题处是
+   `js/puzzles/registry.js:47` 的 `dailySpec`（首页和路由两条入口都得走它，否则玩家会拿到
    和进度条不一样的题）。
 2. 求解器可以当测试用 —— 单测里那句"独立暴力实现和引擎在 5000 个局面上判定相同"
    之所以稳定，是因为双方拿到的是同一个位图。
@@ -59,7 +59,7 @@ js/core/            rng / storage / audio / paper / theme
 
 记号一律不计账：数织的叉、数墙的圆点、帐篷/黑白的叉、隔离与五寸钉的小标记、数邻副笔那道
 「不许配对」的界线都是"人给自己留的备忘"，不是盘面状态。所以 `moves` 数的是落子，不是点击次数 ——
-`test/registry.test.mjs` 会验一遍"报了 par 的引擎，两处那个数必须相等"。
+`test/registry.test.mjs:68` 的 `par` 断言会验一遍"报了 par 的引擎，两处那个数必须相等"。
 
 ## 求解器不许说谎
 
@@ -88,8 +88,8 @@ js/core/            rng / storage / audio / paper / theme
 - **从同一个哈希上切位段做轮转**。每日挑战原本这样挑档位：把日期串折成一个 `h`，
   再按玩法序号取 `h >> (i * 3)`。看起来人畜无害，实际是七个玩法在 28 天里一次都没
   换过尺寸 —— 日期串只有末两位在变，高位段天天一样，而 `i * 3` 恰好切在那些不动的
-  位上；`i` 一大还会整体右移出界。现在每个玩法各自哈希整颗种子（`hashSeed(seed)`），
-  位段之间不再互相借位。回归闸门是 `test/registry.test.mjs` 里那句"28 天内每个档位
+  位上；`i` 一大还会整体右移出界。现在每个玩法各自哈希整颗种子（`js/core/rng.js:5` 的 `hashSeed`），
+  位段之间不再互相借位。回归闸门是 `test/registry.test.mjs:112` 的 `never`："28 天内每个档位
   都轮到过、且没有一档吃掉 75% 以上"。
 - **难度锚点要先量它会不会动**。五寸钉靠"删多少数字"调难度，第一版拿"推导写入了
   多少格"当尺子，实测才发现这个数对任何可推到底的盘恒等于 `n²` —— 一把尺子量不出
@@ -149,7 +149,7 @@ js/core/            rng / storage / audio / paper / theme
 
 ## 无头复验为什么用真指针事件
 
-`tools/playtest.mjs` 走 CDP 的 `Input` 域发 `mousePressed/Moved/Released`，而不是在
+`tools/playtest.mjs:400` 走 CDP 的 `Input` 域发 `mousePressed/Moved/Released`，而不是在
 页面里 `dispatchEvent` 造合成事件。差别在于：前者会真的走命中测试、坐标换算和
 `setPointerCapture`，而这三处正是上面那个漂移 bug 的藏身处。页面侧只留读状态的
 辅助函数（`geom/settle/steps/report`）和一个在引擎门口记一笔的探针，没有任何绕过

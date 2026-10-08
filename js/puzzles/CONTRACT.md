@@ -1,6 +1,6 @@
 # 玩法引擎契约
 
-引擎是**纯状态机**：不碰 DOM、不读 `localStorage`、不取当前时间、不随机（除 `rngFrom(seed)`）。
+引擎是**纯状态机**：不碰 DOM、不读 `localStorage`、不取当前时间、不随机（随机只走 `js/core/rng.js:41` 的 `rngFrom`）。
 这条边界让整个 `test/` 目录能在 node 里跑真实游戏逻辑，也让同一个 seed 在任何设备上
 生成同一道题 —— 每日挑战的"全球同题"依赖于此。
 
@@ -19,6 +19,9 @@
   create(spec) -> engine,
 }
 ```
+
+11 家玩法各自 default export 上面这一坨，汇总住在 `js/puzzles/registry.js:33` 的 `KINDS`；
+首页图标与副笔文案不在引擎里，而在同一文件 `js/puzzles/registry.js:19` 的 `SHELL`。
 
 ## engine
 
