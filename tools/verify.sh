@@ -46,6 +46,15 @@ if [ -z "${SKIP_UNIT:-}" ]; then
   #      （tests 1 / fail 1），十个文件一个没跑。改成 shell 展开的文件列表，两边同一组题。
   node --test --test-reporter=spec test/*.test.mjs > /tmp/nikoli-unit.log 2>&1 || FAILED=1
   tail -14 /tmp/nikoli-unit.log
+  # 文档对账腿跟着同一条 glob 跑了，可它的读数排在 tail 之外 —— 日志里看不见，就不能说"跑到过"。
+  # 所以单独点出来一行；这一行缺席就是 glob 没收到这条腿（改名、挪走、或整块被跳过），当场红。
+  docs_line=$(grep -m1 'RESULT docs-test' /tmp/nikoli-unit.log || true)
+  if [ -n "$docs_line" ]; then
+    echo "docs $docs_line"
+  else
+    note error "单测日志里没有 docs-test 的读数：这条腿没被 glob 收到（改名、挪走，或整段被跳过）"
+    FAILED=1
+  fi
   grep -E "^ℹ (tests|pass|fail)" /tmp/nikoli-unit.log | while read -r l; do note notice "unit $l"; done
   grep -E "^✖" /tmp/nikoli-unit.log | head -12 | while read -r l; do note error "unit $l"; done
   if [ $FAILED -ne 0 ]; then
