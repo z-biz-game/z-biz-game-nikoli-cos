@@ -46,6 +46,15 @@ if [ -z "${SKIP_UNIT:-}" ]; then
   #      （tests 1 / fail 1），十个文件一个没跑。改成 shell 展开的文件列表，两边同一组题。
   node --test --test-reporter=spec test/*.test.mjs > /tmp/nikoli-unit.log 2>&1 || FAILED=1
   tail -14 /tmp/nikoli-unit.log
+  # 文档对账腿跟着同一条 glob 跑了，可它的读数排在 tail 之外 —— 日志里看不见，就不能说"跑到过"。
+  # 所以单独点出来一行；这一行缺席就是 glob 没收到这条腿（改名、挪走、或整块被跳过），当场红。
+  docs_line=$(grep -m1 'RESULT docs-test' /tmp/nikoli-unit.log || true)
+  if [ -n "$docs_line" ]; then
+    echo "docs $docs_line"
+  else
+    note error "单测日志里没有 docs-test 的读数：这条腿没被 glob 收到（改名、挪走，或整段被跳过）"
+    FAILED=1
+  fi
   grep -E "^ℹ (tests|pass|fail)" /tmp/nikoli-unit.log | while read -r l; do note notice "unit $l"; done
   grep -E "^✖" /tmp/nikoli-unit.log | head -12 | while read -r l; do note error "unit $l"; done
   if [ $FAILED -ne 0 ]; then
@@ -72,7 +81,7 @@ for i in $(seq 1 40); do
   curl -fsS -m 1 "$BASE" >/dev/null 2>&1 && break
   sleep 0.25
 done
-curl -fsS -m 2 "$BASE" >/dev/null 2>&1 || { note error "静态服没起来（:$SPORT）$(tail -3 /tmp/nikoli-serve.log | tr -d '\r\n')"; echo "静态服没起来：$(cat /tmp/nikoli-serve.log)" >&2; exit 3; }
+curl -fsS -m 2 "$BASE" >/dev/null 2>&1 || { note error "静态服没起来（:${SPORT}）$(tail -3 /tmp/nikoli-serve.log | tr -d '\r\n')"; echo "静态服没起来：$(cat /tmp/nikoli-serve.log)" >&2; exit 3; }
 # 光"端口有人应答"不够：本机同时跑着一堆别的会话的 dev server，绑不上端口时它们会替我们
 # 把 curl 答了，于是整套无头复验其实是在别人的站上找 window.nikoli —— 报出来的却是"页面没起来"。
 # 所以按标题认一句"这是本站"，认不出就换 SPORT 重来，绝不拿别人的页面当证据。
@@ -82,7 +91,7 @@ printf '%s' "$PAGE_HTML" | grep -q "纸上逻辑 Nikoli" || {
   echo "$SPORT 端口上是别人的页面：$(printf '%s' "$PAGE_HTML" | head -c 200)" >&2
   exit 4; }
 [ -s /tmp/nikoli-serve.log ] && grep -qi "EADDRINUSE\|address already in use" /tmp/nikoli-serve.log && {
-  note error "静态服其实没绑上 :$SPORT（EADDRINUSE），答话的是别家进程"; exit 4; }
+  note error "静态服其实没绑上 :${SPORT}（EADDRINUSE），答话的是别家进程"; exit 4; }
 
 # 全新 --user-data-dir 绑定 DevTools 比热档慢，等端点而不是猜 sleep。
 for i in $(seq 1 60); do
@@ -125,5 +134,10 @@ PYRC=$?
 kill $WD 2>/dev/null
 echo "=== 截图：$SHOTS ==="
 ls -1 "$SHOTS" 2>/dev/null | sed 's/^/  /'
+# 部署集闸：ci.yml 跑这两步、本地整闸以前一次都不跑。缺这一步就是「本地全绿、线上 404 自己的
+# manifest / sw.js / 图标」这一整类坏法。它不碰 Chrome，也不读页面，纯查产物。
+echo "=== deploy-set ==="
+node tools/deploy-set.mjs || FAILED=1
+node tools/deploy-set-selftest.mjs || FAILED=1
 [ $FAILED -eq 0 ] && echo "=== ALL GREEN ===" || echo "=== 上方有失败 ==="
 exit $FAILED

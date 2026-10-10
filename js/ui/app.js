@@ -1,8 +1,7 @@
 // 应用外壳：路由、计时、记分、输入设备无关性都在这里。棋盘内部的一切属于引擎。
 
 import { store } from '../core/storage.js';
-import { initReduceMotion, reduceMotionTouched, watchReduceMotion } from '../core/motion.js';
-import { sfx, haptic, isMuted, setMuted, toggleMuted, audioState } from '../core/audio.js';
+import { sfx, haptic, setMuted, isMuted } from '../core/audio.js';
 import { todayKey } from '../core/rng.js';
 import { KINDS, byId, dailySpec, dailySeed } from '../puzzles/registry.js';
 import { BoardView } from './board_view.js';
@@ -397,14 +396,22 @@ function openHowto(kind) {
 
 function syncSettings() {
   $$('#settings input[data-setting]').forEach((i) => { i.checked = !!store.settings[i.dataset.setting]; });
-  const muted = isMuted();
-  const btn = $('#sound-btn');
-  if (btn) {
-    btn.classList.toggle('off', muted);
-    btn.setAttribute('aria-pressed', muted ? 'false' : 'true');
-    btn.setAttribute('aria-label', muted ? '声音已关' : '声音已开');
-    btn.title = muted ? '声音已关 (M)' : '声音 (M)';
-  }
+  const on = !!store.settings.sound;
+  $('#sound-btn').classList.toggle('off', !on);
+  // 开关自己也要说得出当前状态：aria-pressed + 图标互换，不能只有一个 off 样式。
+  $('#sound-btn').setAttribute('aria-pressed', String(on));
+  $('#sound-btn').textContent = on ? '♪' : '✕';
+  $('#sound-btn').setAttribute('aria-label', on ? '声音' : '声音已关');
+}
+
+/** 静音开关：控件状态与真静音（suspend AudioContext）一起翻 */
+function toggleSound() {
+  const on = !store.settings.sound;
+  store.set('sound', on);
+  setMuted(!on);            // 开着 => 取消静音；关掉 => 真挂起 ctx
+  syncSettings();
+  if (on) sfx.click();      // 只在开声时给反馈
+  return on;
 }
 
 // ---- 装配 -----------------------------------------------------------------------
@@ -430,14 +437,7 @@ export function boot() {
     if (a === 'home') location.hash = '#/';
     else if (a === 'settings') { syncSettings(); $('#settings').showModal(); }
     else if (a === 'howto-global') openHowto(KINDS[0]);
-    else if (a === 'pause') setPaused(!S.paused);
-    else if (a === 'toggle-fullscreen') toggleFullscreen();
-    else if (a === 'toggle-sound') {
-      const wasMuted = isMuted();
-      toggleMuted();
-      syncSettings();
-      if (wasMuted) sfx.click();   // 取消静音才补一声；静音那一下必须无声
-    } else if (a === 'undo' && doUndo()) { /* played sound */ }
+    else if (a === 'toggle-sound') toggleSound(); else if (a === 'undo' && doUndo()) { /* played sound */ }
     else if (a === 'redo' && doRedo()) { /* ditto */ }
     else if (a === 'hint') doHint();
     else if (a === 'restart') doRestart();
@@ -506,6 +506,7 @@ export function boot() {
     if (nav) { view.nudge(...nav); ev.preventDefault(); return; }
     if (k === ' ' || k === 'Enter') { view.press(true); ev.preventDefault(); return; }
     if (k === 'z' || k === 'Z') { ev.preventDefault(); k === 'Z' ? doRedo() : doUndo(); return; }
+    if (k === 'm' || k === 'M') { ev.preventDefault(); toggleSound(); return; }
     if (k === 'h') { doHint(); return; }
     if (k === 'r') { doRestart(); return; }
     if (k === '1' || k === '2') {
@@ -514,6 +515,8 @@ export function boot() {
     }
   });
 
+  // 存档里是关声的，就让 AudioContext 一开始就是挂起的（重开一局也不自己弹回来）
+  setMuted(!store.settings.sound);
   syncSettings();
   renderHome();
   route();
@@ -565,3 +568,76 @@ export const debug = {
   setPaused,
   audioState,
 };
+
+// ---- 全屏开关（#btn-fullscreen）----
+// 绑的是本页 HUD 上真实存在的那个按钮。全屏最常见的假实现就是引用一个并不存在的
+// id：点下去什么也不会发生，量具却算它"已实现"。所以这里找不到按钮就直接不装。
+(function bindFullscreen() {
+  const btn = document.getElementById('btn-fullscreen');
+  if (!btn) return;
+  const root = document.documentElement;
+  // 只做特性检测，不嗅探 UA：iOS Safari 是 webkitRequestFullscreen，老 Edge 是 ms 前缀，
+  // 而 UA 字符串随时会改。"有没有这个能力"是查出来的，不是猜出来的。
+  const req = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
+  const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+  const current = () => document.fullscreenElement || document.webkitFullscreenElement
+    || document.msFullscreenElement || null;
+
+  // 不支持也要给个说法：只把按钮灰掉而不解释，玩家会以为这功能没做完。
+  // supported 这枚标记不能省：下面 sync() 每次都会重写 title，不挡住的话，装的时候刚写
+  // 进去的人话原因会被随后的 sync() 立刻抹成"全屏 (F)"——禁用就变成一句没有理由的禁用。
+  let supported = !!req;
+  const unsupported = () => {
+    supported = false;
+    btn.disabled = true;
+    btn.title = '这个浏览器不提供元素全屏（iOS Safari 请用「添加到主屏幕」独立打开）';
+  };
+  if (!req) unsupported();
+
+  // fullscreen 返回 Promise，被拒时必须吃掉：iOS Safari 对多数非 video 元素直接拒绝，
+  // 让这个 rejection 冒泡出去会变成一条未捕获错误，整局游戏跟着挂。
+  const settle = (p) => { if (p && p.catch) p.catch(unsupported); };
+
+  // 进出都能走：已经全屏时这次调用是退出，不是"再进一次"。
+  function toggle() {
+    try {
+      if (current()) {
+        if (exit) settle(exit.call(document));
+      } else if (req) {
+        settle(req.call(root));
+      } else {
+        unsupported();
+      }
+    } catch (e) {
+      unsupported();
+    }
+  }
+
+  // Esc 和系统手势退出都不经过我们的代码，按钮状态只能靠 fullscreenchange 回写，
+  // 否则用户已经退出、HUD 还停在"退出全屏"，下一次点击反而会重新进全屏。
+  function sync() {
+    const on = !!current();
+    btn.setAttribute('aria-pressed', String(on));
+    // 图标按钮不换字形（换字形会把 HUD 的视觉语言换掉），改成把可读名与提示写回无障碍属性。
+    const say = on ? "全屏" : "全屏";
+    btn.setAttribute('aria-label', say);
+    if (supported) btn.title = say + '（F）';
+    const body = document.body;
+    if (body && body.classList) body.classList.toggle('fullscreen', on);
+  }
+
+  btn.addEventListener('click', toggle);
+  window.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'f' && ev.key !== 'F') return;
+    const t = ev.target;
+    // 盘号 / 种子这类输入框里打字不能触发全屏，否则玩家输 seed 输到一半屏幕没了。
+    if (t && /input|textarea|select/i.test(t.tagName || '')) return;
+    if (ev.repeat || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    ev.preventDefault();
+    toggle();
+  });
+  window.addEventListener('fullscreenchange', sync);
+  window.addEventListener('webkitfullscreenchange', sync);
+  window.addEventListener('MSFullscreenChange', sync);
+  sync();
+})();
