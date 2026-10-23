@@ -9,20 +9,14 @@ import { store } from './storage.js';
 let ctx = null;
 let master = null;
 
-// 真静音 = 挂起整个 AudioContext，不是把 master.gain 拧到 0。
-// 简报 §2：只把 gain 设 0 是假静音 —— 节点照建、时钟照跑，取消静音还有尾巴。
-// 静音偏好单独记在 cos.mute：它决定"这个 AudioContext 允不允许跑起来"，
-// 而 store.settings.sound 决定控件显示成什么样，两边都要。
-let muted = false;
-try {
-  muted = localStorage.getItem('cos.mute') === '1';
-} catch { /* 读不到就沿用默认开声 */ }
+export const isMuted = () => !store.settings.sound;
 
 function ensure() {
-  // 静音态连 ctx 都不许建、不许拉起来：静音期间这个 AudioContext 根本没有在跑。
-  if (muted) return null;
-  if (ctx) return ctx;
-  if (!store.settings.sound) return null;
+  if (isMuted()) return null;
+  if (ctx) {
+    if (ctx.state === 'suspended') ctx.resume().catch(() => { /* 手势之前起不来，正常 */ });
+    return ctx;
+  }
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   ctx = new AC();
@@ -32,26 +26,28 @@ function ensure() {
   return ctx;
 }
 
-export function isMuted() {
-  return muted;
+// 切换静音态要把已经活着的上下文真的停/续；没建过上下文就什么都不用做。
+function applyMute() {
+  if (!ctx) return;
+  try {
+    if (isMuted()) { if (ctx.state === 'running') ctx.suspend().catch(() => {}); }
+    else if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  } catch { /* 旧 Safari 上 suspend 可能是同步抛错，忽略 */ }
 }
 
-/** 静音开关：suspend / resume 真停真起，偏好落盘 */
-export function setMuted(on) {
-  const next = !!on;
-  if (next === muted) return muted;
-  muted = next;
-  if (ctx) {
-    if (next) {
-      if (ctx.state === 'running' && ctx.suspend) ctx.suspend().catch(() => {});
-    } else if (ctx.state === 'suspended' && ctx.resume) {
-      ctx.resume().catch(() => {});
-    }
-  }
-  try {
-    localStorage.setItem('cos.mute', next ? '1' : '0');
-  } catch { /* 隐私模式下写不进去也不该炸游戏 */ }
-  return muted;
+export function setMuted(next) {
+  store.set('sound', !next);
+  applyMute();
+  return next;
+}
+
+export function toggleMuted() {
+  return setMuted(!isMuted());
+}
+
+// 供探针与设置面板读：上下文到底停没停
+export function audioState() {
+  return ctx ? ctx.state : isMuted() ? 'muted-idle' : 'idle';
 }
 
 function tone({ f = 440, to = f, dur = 0.09, type = 'sine', gain = 0.15, delay = 0 }) {

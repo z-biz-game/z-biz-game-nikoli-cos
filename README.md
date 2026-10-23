@@ -10,7 +10,7 @@ WebAudio 合成音效，localStorage 存进度。位图（应用图标、纸纹�
 
 ```bash
 node tools/serve.mjs        # → http://127.0.0.1:5173/，然后点开任一档位
-node --test test/*.test.mjs # 269 项引擎单测（不开浏览器）
+node --test test/*.test.mjs # 271 项引擎单测（不开浏览器）
 npm run art                 # 重画 assets/ 全套位图（需 python3 + Pillow）
 bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 ```
@@ -56,7 +56,7 @@ bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 左列是屏上或本文说出口的话，中列是**本轮真跑过**的命令，右列是它到底在比什么。
 用例数由 `node --test --test-reporter=spec` 打印（`ℹ tests / pass / fail`），
 无头那条由 `tools/verify.sh:118` 打印 `rows: N fail: … errors: …`。
-`npm test` 现在就是 `tools/verify.sh` 里那条显式 glob（本机 269 项，与 README 表里的数同源）：
+`npm test` 现在就是 `tools/verify.sh` 里那条显式 glob（本机 271 项，与 README 表里的数同源）：
 以前它写的是目录参数 `node --test test/`，而 `tools/verify.sh` 的头注记录了那个写法在 CI 的
 node 22 runner 上「只报出一条名为 test 的失败，十个文件一个没跑」——本机 node 26 察觉不到这件事，
 所以总闸与 CI 那条腿不能再是两种写法。
@@ -76,10 +76,10 @@ node 22 runner 上「只报出一条名为 test 的失败，十个文件一个�
 | 撤销不退款，评星测得出试错 | `node --test test/*.test.mjs`（各家一条）+ `@无头` | 快照只搬盘面不搬账；照唯一解干净地走一遍，`moves` 必须恰好等于 `par`；`par` 是可证下界（`docs/DESIGN.md` 逐款给了推导） | 破坏试验刀 4（隔离 `undo()` 退款）、刀 6（数织 `par+1`）、刀 7（数邻副笔开始收账）三刀各点名咬住自己那条用例 |
 | 存档能导出再导回来，坏盘不崩 | `node --test test/storage.test.mjs` | 假 localStorage 接上：盘上形状 == 内存形状、`best` 只会变小 / `solves` 只会变大、连续天数按日历日（跨月末）、export→import 在"另一台机器"上逐字节还原、垃圾文本当场拒、`reset` 真清盘、`setItem` 抛错只降级 | 本轮新增这一套（9 条用例）。它当场揭出一条真会崩的路：`{"records":7}` 能过旧的导入校验，然后在**通关那一刻**抛 `Cannot create property … on number '7'`，而且盘已经写坏、刷新就再崩一次 —— `js/core/storage.js` 的 `isObj/objOr` 就是这一轮的修复 |
 | 门面报的玩法数不许还写着上一次那个数 | `node --test test/registry.test.mjs` | `README.md` / `package.json` / `index.html` 里凡「N种玩法 / N种纸笔推理谜题」的汉字数必须等于 `KINDS.length`，且 `index.html` 的 `#/…>` 静态占位必须等于 `/11` | 破坏试验刀 8（把占位改回 `/10`）、刀 9（把本文标题里那个数词抹掉一个字，让 README 报旧数）各红一次；这条还带防空转：找到的报数点少于 3 处就红 |
-| 一个语法错的引擎文件不许上线 | CI 的「语法自检」步（`.github/workflows/ci.yml` 里 `- name: 语法自检`，一步就是 `run: npm run check`），本地同一条 `npm run check` | `git ls-files '*.js' '*.mjs'` 逐个 `node --check`，文件数由这条 leg 自己印 | 本轮 `npm run check` → `OK 39 files`（含 `test/storage.test.mjs`）。以前 CI 那一步自己抄了一份 `git ls-files | while read` 循环，与 leg 逐字同集合但两份独立漂；上一轮这份文档写的还是 **37 个文件**（磁盘已经 39 了），现在数从命令里出来，文档只抄读数 |
+| 一个语法错的引擎文件不许上线 | CI 的「语法自检」步（`.github/workflows/ci.yml` 里 `- name: 语法自检`，一步就是 `run: npm run check`），本地同一条 `npm run check` | `git ls-files '*.js' '*.mjs'` 逐个 `node --check`，文件数由这条 leg 自己印 | 本轮 `npm run check` → `OK 42 files`（含 `test/storage.test.mjs`）。以前 CI 那一步自己抄了一份 `git ls-files | while read` 循环，与 leg 逐字同集合但两份独立漂；上一轮这份文档写的还是 **37 个文件**（磁盘已经 39 了），现在数从命令里出来，文档只抄读数 |
 | 加一道玩法有清单可抄 | `node --test test/registry.test.mjs` + `js/puzzles/CONTRACT.md` | 契约字段齐备（`generate/create/down/move/up/undo/redo/canUndo/canRedo/hint/solved/stats/draw` + 可选 `celebrate`）、`par` 在引擎与题面两处必须是同一个数 | 同上 `tests 7 / fail 0` |
 
-13 道 node 套件合起来本轮是 **269 条用例、0 失败**；浏览器层 **92 行、0 失败**，
+14 个 node 套件（13 个玩法/存档 + 文档腿）合起来本轮是 **271 条用例、0 失败**；浏览器层 **92 行、0 失败**，
 加在一起是 `bash tools/verify.sh` 交回的 `=== ALL GREEN ===`（退出码 0）。
 `tools/verify.sh:120` 还有一条防空跑：无头行数少于 20 就判失败 —— "跑完了但一条都没记上"不算过。
 
@@ -150,8 +150,8 @@ D4 一记（把带指认的引用搬到同一文件里不含那个名字的那�
 且前面借不到路径的形状）、D1 一记（把输入集的推导缩回"只挑仓根那一份"）。另加一记阳性对照：把 README
 搬进 `docs/` 之后腿仍然数得到三份文档 —— 这一记绿的比那五记红的更能说明它是跟着清单走，不是跟着仓根走。
 
-本轮读数（2026-10-08，本机一次 `node test/docs.test.mjs`）：3 份文档 · 21 条引用 · 10 条带指认 ·
-0 条续引 · 0 条跨仓 · 文档行号对账 15 条判据，`rows: 15 fail: 0`；同一轮 `npm test` 是 270 条用例全过。
+本轮读数（2026-10-22，本机一次 `node test/docs.test.mjs`）：4 份文档 · 23 条引用 · 12 条带指认 ·
+0 条续引 · 0 条跨仓 · 文档行号对账 15 条判据，`rows: 15 fail: 0`；同一轮 `npm test` 是 271 条用例全过。
 这六个数由这条腿自己逐处对账：文档里凡印着这些标签的地方都必须等于本轮实数，一处都没印同样要红
 （D10 抄写台账；三把只动文档的刀在带 `.git` 的副本上各红一次、点名对应标签，跑完树复原）。下面引的那次
 CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实读数，我没去改它。
@@ -163,8 +163,8 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 | script | 命令 | 本轮状态 |
 | --- | --- | --- |
 | `start` | `node tools/serve.mjs` | 可跑；默认端口 5173（`tools/serve.mjs:9` 的 `PORT`），只绑 `127.0.0.1`，路径带 `..` 逃逸一律 403 |
-| `test` | `node --test test/` | 本机 node v26.8.1 → `tests 259`（改前）/ 现在 269 全绿。**但这是最不该用的一条**：node 22（CI 那台）拿到目录参数时一个文件都找不到，只报一条名为 `test` 的失败，看起来像"测试跑了没通过"，其实一道都没跑（`docs/DESIGN.md` 记了这个坑）。写文档、发命令请一律用 `test/*.test.mjs` 展开形式 |
-| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f" \|\| exit 1; done` + 末尾把 `git ls-files` 的条数一起印出来 | 本轮 `OK 39 files`（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"；那个 39 是它自己数的，文档只是抄） |
+| `test` | `node --test test/` | 本机 node v26.8.1 → `tests 259`（改前）/ 现在 271 全绿。**但这是最不该用的一条**：node 22（CI 那台）拿到目录参数时一个文件都找不到，只报一条名为 `test` 的失败，看起来像"测试跑了没通过"，其实一道都没跑（`docs/DESIGN.md` 记了这个坑）。写文档、发命令请一律用 `test/*.test.mjs` 展开形式 |
+| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f" \|\| exit 1; done` + 末尾把 `git ls-files` 的条数一起印出来 | 本轮 `OK 42 files`（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"；那个 39 是它自己数的，文档只是抄） |
 | `verify` | `bash tools/verify.sh` | `=== ALL GREEN ===`，退出码 0（本文所有读数都来自这条） |
 | `deploy-set` | `node tools/deploy-set.mjs` | 绿：对拷出来的产物提要求（见「上线的到底是哪一批文件」一节） |
 | `deploy-set:selftest` | `node tools/deploy-set-selftest.mjs` | 绿：9 刀逐类打红且点名 + 1 条阴性对照 |
@@ -182,7 +182,7 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 
 ## 门禁清单：本轮逐条复跑
 
-`node --test --test-reporter=spec test/*.test.mjs` → **`tests 269 / pass 269 / fail 0`**。
+`node --test --test-reporter=spec test/*.test.mjs` → **`tests 271 / pass 271 / fail 0`**。
 每个套件自己跑一遍的分账（本轮实测）：
 
 | 套件 | 用例 | 套件 | 用例 |
@@ -191,9 +191,9 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 | `dominosa` | 20 | `registry` | 7 |
 | `hitori` | 21 | `shikaku` | 24 |
 | `lightsout` | 20 | `slant` | 25 |
-| `nonogram` | 23 | `storage` | 9（本轮新增） |
+| `nonogram` | 23 | `storage` | 10（本轮新增） |
 | `numberlink` | 26 | `tents` | 22（本轮 +1） |
-| `nurikabe` | 23 | **合计** | **269** |
+| `nurikabe` | 23 | **合计** | **270** |
 
 浏览器层 `rows: 92`。`tools/playtest.mjs` 里有 23 个 `ok()` 落点（`37:` 那个是定义，不算），
 92 行是这么来的：
@@ -248,7 +248,7 @@ js/puzzles/*.js         十一款引擎：题面、状态机、渲染、求解�
 js/puzzles/registry.js  玩法注册表 + 每日排题（唯一的排题处）
 js/puzzles/CONTRACT.md  引擎契约
 js/core/                rng（hashSeed/mulberry32/todayKey）、storage、audio、paper、theme
-test/                   13 个 node 套件，269 条用例
+test/                   14 个 node 套件，271 条用例
 tools/serve.mjs         只绑 127.0.0.1 的静态服（默认 :5173）
 tools/playtest.mjs      CDP 真指针复验（23 个 ok() 落点 → 92 行）
 tools/verify.sh         单测 → 静态服 → 无头通关 → 截图，一把梭
@@ -284,7 +284,7 @@ tools/deploy-set-selftest.mjs  部署集闸的阴性自证（每一类断言当�
 - **仓外探针不是闸**。`_tmp-dominosa-readings.mjs` 那种工作区根脚本给的是"本轮读数"，
   换一颗 seed 串、换一台机器都可能变；它不进 CI，也不会让任何东西变红。本文引用它时
   一律写清"仓外探针，无闸守着"。
-- **墙钟只当保险丝**。92 行与 269 条用例里唯一涉及毫秒的判定就是各家那几条 `BUDGET`/`FUSE`
+- **墙钟只当保险丝**。92 行与 271 条用例里唯一涉及毫秒的判定就是各家那几条 `BUDGET`/`FUSE`
   上界；本文不出现"多少毫秒能玩"的承诺。上一版在这里写过 `p50/p95` 的具体毫秒，本轮删了 ——
   同一个探针在同一台机器上两轮给的数字就差了 15%（8×9 档 8.22 → 7.04），它测的是机器不是算法。
 - **"每档 40 颗 seed 全绿"是对那 40 颗的承诺**，不是对 seed 空间的承诺。生成器的拒绝原因

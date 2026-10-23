@@ -1,26 +1,25 @@
 {
-  "name": "纸上逻辑 Nikoli",
-  "short_name": "纸上逻辑 Nikoli",
-  "start_url": ".",
+  "name": "纸上逻辑 Nikoli · 十一种纸笔推理谜题",
+  "short_name": "纸上逻辑",
+  "description": "数织、数链、点灯、孔明棋、数墙、帐篷、黑白、隔离、五寸钉、数间、数邻 —— 每道题都由唯一解生成器出题，提示来自真求解器。",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0a0a12",
-  "theme_color": "#0a0a12",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f4efe3",
+  "theme_color": "#f4efe3",
+  "categories": ["games", "education"],
+  "lang": "zh-CN",
+  "dir": "ltr",
   "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "assets/icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "今日挑战", "short_name": "今日", "url": "./#/", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

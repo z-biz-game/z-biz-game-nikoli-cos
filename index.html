@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>纸上逻辑 Nikoli · 十一种纸笔推理谜题</title>
-<meta name="description" content="十一种纸笔推理谜题：数织、数链、点灯、孔明棋、数墙、帐篷、黑白、隔离、五寸钉、数间、数邻。每道题都由唯一解生成器出题，提示来自真求解器。"><meta property="og:title" content="纸上逻辑 Nikoli · 十一种纸笔推理谜题"><meta property="og:description" content="十一种纸笔推理谜题：数织、数链、点灯、孔明棋、数墙、帐篷、黑白、隔离、五寸钉、数间、数邻。每道题都由唯一解生成器出题，提示来自真求解器。"><meta property="og:image" content="https://z-biz-game.github.io/z-biz-game-nikoli-cos/icons/icon-512.png"><meta name="twitter:image" content="https://z-biz-game.github.io/z-biz-game-nikoli-cos/icons/icon-512.png">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"><meta name="twitter:card" content="summary">
+<meta name="description" content="十一种纸笔推理谜题：数织、数链、点灯、孔明棋、数墙、帐篷、黑白、隔离、五寸钉、数间、数邻。每道题都由唯一解生成器出题，提示来自真求解器。">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#f4efe3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -20,18 +20,12 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="纸上逻辑 Nikoli · 十一种纸笔推理谜题">
 <meta property="og:description" content="数织、数链、点灯、孔明棋、数墙、帐篷、黑白、隔离、五寸钉、数间、数邻。每道题都由唯一解生成器出题，提示来自真求解器。">
-<meta property="og:image" content="assets/brand/og-cover.png">
+<meta property="og:image" content="https://z-biz-game.github.io/z-biz-game-nikoli-cos/assets/brand/og-cover.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="assets/brand/og-cover.png">
+<meta name="twitter:image" content="https://z-biz-game.github.io/z-biz-game-nikoli-cos/assets/brand/og-cover.png">
 <link rel="stylesheet" href="css/game.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f4efe3'/%3E%3Cg fill='%231f6f5c'%3E%3Crect x='6' y='6' width='7' height='7' rx='1.5'/%3E%3Crect x='19' y='6' width='7' height='7' rx='1.5'/%3E%3Crect x='6' y='19' width='7' height='7' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
-
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
 <div id="app">
@@ -46,9 +40,9 @@
     </button>
     <div class="topbar-right">
       <span id="streak-chip" class="chip" title="连续做每日挑战的天数">— 天</span>
-      <button class="icon" data-action="toggle-sound" id="sound-btn" type="button" aria-pressed="true" aria-label="声音" title="静音 / 恢复音效 · M">♪</button>
+      <button class="icon" data-action="toggle-sound" id="sound-btn" aria-label="声音" aria-pressed="true" title="声音 (M)">♪</button>
+      <button class="icon" data-action="toggle-fullscreen" id="fullscreen-btn" aria-label="全屏" aria-pressed="false" title="全屏 (F)">⤢</button>
       <button class="icon" data-action="settings" aria-label="设置">⋯</button>
-      <button id="btn-fullscreen" class="icon" type="button" aria-pressed="false" aria-label="全屏" title="全屏（F）">⛶</button>
     </div>
   </header>
 
@@ -171,6 +165,5 @@
 </div>
 
 <script type="module" src="js/main.js"></script>
-  <script src="js/sw-register.js"></script>
 </body>
 </html>
