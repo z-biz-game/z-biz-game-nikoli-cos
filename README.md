@@ -76,12 +76,13 @@ node 22 runner 上「只报出一条名为 test 的失败，十个文件一个�
 | 撤销不退款，评星测得出试错 | `node --test test/*.test.mjs`（各家一条）+ `@无头` | 快照只搬盘面不搬账；照唯一解干净地走一遍，`moves` 必须恰好等于 `par`；`par` 是可证下界（`docs/DESIGN.md` 逐款给了推导） | 破坏试验刀 4（隔离 `undo()` 退款）、刀 6（数织 `par+1`）、刀 7（数邻副笔开始收账）三刀各点名咬住自己那条用例 |
 | 存档能导出再导回来，坏盘不崩 | `node --test test/storage.test.mjs` | 假 localStorage 接上：盘上形状 == 内存形状、`best` 只会变小 / `solves` 只会变大、连续天数按日历日（跨月末）、export→import 在"另一台机器"上逐字节还原、垃圾文本当场拒、`reset` 真清盘、`setItem` 抛错只降级 | 本轮新增这一套（9 条用例）。它当场揭出一条真会崩的路：`{"records":7}` 能过旧的导入校验，然后在**通关那一刻**抛 `Cannot create property … on number '7'`，而且盘已经写坏、刷新就再崩一次 —— `js/core/storage.js` 的 `isObj/objOr` 就是这一轮的修复 |
 | 门面报的玩法数不许还写着上一次那个数 | `node --test test/registry.test.mjs` | `README.md` / `package.json` / `index.html` 里凡「N种玩法 / N种纸笔推理谜题」的汉字数必须等于 `KINDS.length`，且 `index.html` 的 `#/…>` 静态占位必须等于 `/11` | 破坏试验刀 8（把占位改回 `/10`）、刀 9（把本文标题里那个数词抹掉一个字，让 README 报旧数）各红一次；这条还带防空转：找到的报数点少于 3 处就红 |
-| 一个语法错的引擎文件不许上线 | CI 的「语法自检」步（`.github/workflows/ci.yml` 里 `- name: 语法自检`，一步就是 `run: npm run check`），本地同一条 `npm run check` | `git ls-files '*.js' '*.mjs'` 逐个 `node --check`，文件数由这条 leg 自己印 | 本轮 `npm run check` → `OK 42 files`（含 `test/storage.test.mjs`）。以前 CI 那一步自己抄了一份 `git ls-files | while read` 循环，与 leg 逐字同集合但两份独立漂；上一轮这份文档写的还是 **37 个文件**（磁盘已经 39 了），现在数从命令里出来，文档只抄读数 |
+| 一个语法错的引擎文件不许上线 | CI 的「语法自检」步（`.github/workflows/ci.yml` 里 `- name: 语法自检`，一步就是 `run: npm run check`），本地同一条 `npm run check` | `git ls-files '*.js' '*.mjs'` 逐个 `node --check`，文件数由这条 leg 自己印 | 本轮 `npm run check` → `OK 44 files`（含 `test/storage.test.mjs` 与 `test/pause.test.mjs`）。以前 CI 那一步自己抄了一份 `git ls-files | while read` 循环，与 leg 逐字同集合但两份独立漂；上一轮这份文档写的还是 **37 个文件**（磁盘已经 39 了），现在数从命令里出来，文档只抄读数 |
 | 加一道玩法有清单可抄 | `node --test test/registry.test.mjs` + `js/puzzles/CONTRACT.md` | 契约字段齐备（`generate/create/down/move/up/undo/redo/canUndo/canRedo/hint/solved/stats/draw` + 可选 `celebrate`）、`par` 在引擎与题面两处必须是同一个数 | 同上 `tests 7 / fail 0` |
 | 暂停是真暂停：表停、闸门关、帧停、恢复不丢 | `node --test test/pause.test.mjs` | 手摇假时钟 + 假 rAF 驱动**真的**外壳与棋盘视图：暂停期间表不走、落子/擦/提示/撤销/键盘一个都不落到引擎上、rAF 一帧都不进；恢复后恰好接着走，反复切三次仍然自洽 | 本轮 `tests 8 / fail 0`；破坏试验四刀各红一次（见「暂停」一节） |
 
-15 个 node 套件（13 个玩法/存档 + 文档腿 + 暂停腿）合起来本轮是 **279 条用例、0 失败**；浏览器层 **92 行、0 失败**，
-加在一起是 `bash tools/verify.sh` 交回的 `=== ALL GREEN ===`（退出码 0）。
+15 个 node 套件（13 个玩法/存档 + 文档腿 + 暂停腿）合起来本轮是 **279 条用例、0 失败**；浏览器层 **92 行、0 失败**
+（这一行是并线收口那一轮的读数 —— 真暂停这一轮本机不起浏览器，没复跑浏览器腿），
+两者合起来是 `bash tools/verify.sh` 交回的 `=== ALL GREEN ===`（退出码 0）。
 `tools/verify.sh:120` 还有一条防空跑：无头行数少于 20 就判失败 —— "跑完了但一条都没记上"不算过。
 
 ### 上面那些"会红"是怎么验出来的
@@ -151,8 +152,8 @@ D4 一记（把带指认的引用搬到同一文件里不含那个名字的那�
 且前面借不到路径的形状）、D1 一记（把输入集的推导缩回"只挑仓根那一份"）。另加一记阳性对照：把 README
 搬进 `docs/` 之后腿仍然数得到三份文档 —— 这一记绿的比那五记红的更能说明它是跟着清单走，不是跟着仓根走。
 
-本轮读数（2026-10-22，本机一次 `node test/docs.test.mjs`）：4 份文档 · 44 条引用 · 23 条带指认 ·
-0 条续引 · 0 条跨仓 · 文档行号对账 15 条判据，`rows: 15 fail: 0`；同一轮 `npm test` 是 271 条用例全过。
+本轮读数（2026-10-25，本机一次 `node test/docs.test.mjs`）：4 份文档 · 44 条引用 · 23 条带指认 ·
+0 条续引 · 0 条跨仓 · 文档行号对账 15 条判据，`rows: 15 fail: 0`；同一轮 `npm test` 是 279 条用例全过。
 这六个数由这条腿自己逐处对账：文档里凡印着这些标签的地方都必须等于本轮实数，一处都没印同样要红
 （D10 抄写台账；三把只动文档的刀在带 `.git` 的副本上各红一次、点名对应标签，跑完树复原）。下面引的那次
 CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实读数，我没去改它。
@@ -198,8 +199,8 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 | --- | --- | --- |
 | `start` | `node tools/serve.mjs` | 可跑；默认端口 5173（`tools/serve.mjs:9` 的 `PORT`），只绑 `127.0.0.1`，路径带 `..` 逃逸一律 403 |
 | `test` | `node --test test/` | 本机 node v26.8.1 → `tests 259`（改前）/ 现在 279 全绿。**但这是最不该用的一条**：node 22（CI 那台）拿到目录参数时一个文件都找不到，只报一条名为 `test` 的失败，看起来像"测试跑了没通过"，其实一道都没跑（`docs/DESIGN.md` 记了这个坑）。写文档、发命令请一律用 `test/*.test.mjs` 展开形式 |
-| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f" \|\| exit 1; done` + 末尾把 `git ls-files` 的条数一起印出来 | 本轮 `OK 44 files`（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"；那个 39 是它自己数的，文档只是抄） |
-| `verify` | `bash tools/verify.sh` | `=== ALL GREEN ===`，退出码 0（本文所有读数都来自这条） |
+| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f" \|\| exit 1; done` + 末尾把 `git ls-files` 的条数一起印出来 | 本轮 `OK 44 files`（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"；那个 44 是它自己数的，文档只是抄） |
+| `verify` | `bash tools/verify.sh` | 并线收口那一轮：`=== ALL GREEN ===`，退出码 0（那一轮本文所有读数都来自这条）；真暂停这一轮只跑了它的**本地腿**（单测 + deploy-set 两段），浏览器腿本机不起浏览器，没复跑 |
 | `deploy-set` | `node tools/deploy-set.mjs` | 绿：对拷出来的产物提要求（见「上线的到底是哪一批文件」一节） |
 | `deploy-set:selftest` | `node tools/deploy-set-selftest.mjs` | 绿：13 刀逐类打红且点名（X10 是阴性对照，照旧不发力；X13 本仓没有内联 data URI 位图，SKIP） |
 
