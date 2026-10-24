@@ -7,6 +7,7 @@ import { todayKey } from '../core/rng.js';
 import { KINDS, byId, dailySpec, dailySeed } from '../puzzles/registry.js';
 import { BoardView } from './board_view.js';
 import { paintGlyph, paintStamp, onArtReady, STAMP_FULL, STAMP_FAINT } from '../core/art.js';
+import { elapsedOf, pauseAt, resumeAt, resetAt, finishAt, lockedAt } from '../core/pause.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -188,10 +189,7 @@ function start(kind, sizeKey, index, daily) {
   S.engine = kind.create(spec);
   S.hints = 0;
   S.tool = 0;
-  S.startedAt = performance.now();
-  S.elapsed = 0;
-  S.paused = false;
-  S.finished = false;
+  resetAt(S, performance.now());
   S.lastSecond = -1;
 
   view.attach(S.engine);
@@ -213,7 +211,7 @@ function start(kind, sizeKey, index, daily) {
 }
 
 function elapsedMs() {
-  return S.paused ? S.elapsed : S.elapsed + (performance.now() - S.startedAt);
+  return elapsedOf(S, performance.now());
 }
 
 function updateHud() {
@@ -239,7 +237,7 @@ function updateHud() {
 
 // 暂停的遮罩只盖住画布，下面那排按钮还在。凡是会改棋盘状态的动作都得自己挡一下。
 // 结算面板上 S.paused 也是 true（finish() 置的），但那一局已经打完了，按钮当然能用。
-const inputLocked = () => S.paused && !S.finished && !$('#play').hidden;
+const inputLocked = () => lockedAt(S, !$('#play').hidden);
 
 // 暂停要做三件事：计时结算进 S.elapsed（不再吃墙上时间）、rAF 停掉（仿真与动画一帧都不推进）、
 // 输入闸门关掉（棋盘不再改引擎状态）。恢复时只重开 startedAt 与循环，引擎状态一个字节都不动。
@@ -247,12 +245,12 @@ function setPaused(next) {
   if (!S.kind || !view) return;
   if (S.paused === next) { syncPauseUI(); return; }
   if (next) {
-    S.elapsed = elapsedMs();
-    S.paused = true;
+    // 先收掉在飞的那一笔（相当于抬手），闸门还开着；然后表停、闸门关。
+    // 顺序反了的话，那一笔的收尾会落在暂停之后 —— 那就是暂停期间改盘面。
     view.pause();
+    pauseAt(S, performance.now());
   } else {
-    S.startedAt = performance.now();
-    S.paused = false;
+    resumeAt(S, performance.now());
     view.resume();
   }
   syncPauseUI();
@@ -309,8 +307,7 @@ function finish() {
   if (!S.kind) return;
   const e = S.engine;
   const ms = elapsedMs();
-  S.paused = true;
-  S.finished = true;
+  finishAt(S);
   const frame = S.hints ? STAMP_FAINT : STAMP_FULL;
   view.win(frame);
   sfx.win();
@@ -411,7 +408,8 @@ function syncSettings() {
 
 export function boot() {
   initReduceMotion();   // 必须在第一次 layout 之前：view.reduce 是在 layout 里算的
-  view = new BoardView($('#board'), $('#board-wrap'));
+  // 闸门只有一处定义（js/core/pause.js 的 lockedAt）：外壳的动作与画布的指针走同一把锁。
+  view = new BoardView($('#board'), $('#board-wrap'), () => lockedAt(S, true));
   // 落子音每一步都放；错题检查要跑一遍求解器，只在抬手时算，15×15 才不掉帧
   view.onInput = (strokeEnd) => {
     if (S.tool === 1 && S.kind.shell.dual) sfx.mark();

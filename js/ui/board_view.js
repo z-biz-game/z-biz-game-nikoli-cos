@@ -10,9 +10,12 @@ const PAD = 10;
 const MIN_CELL = 16;
 
 export class BoardView {
-  constructor(canvas, wrap) {
+  constructor(canvas, wrap, gate = () => false) {
     this.canvas = canvas;
     this.wrap = wrap;
+    // 输入闸门：暂停中一律不许改盘面。闸门只有一处定义（js/core/pause.js 的 lockedAt），
+    // 外壳把它自己那份状态接过来问 —— 这里不再另藏一个暂停标志。
+    this.gate = gate;
     this.ctx = canvas.getContext('2d');
     this.engine = null;
     this.view = null;
@@ -23,7 +26,6 @@ export class BoardView {
     this.lastCell = null;
     this.winAt = 0;
     this.winFrame = STAMP_FULL;
-    this.paused = false;
     this.tool = 0;
     this.onInput = null;
     this.onFrame = null;
@@ -44,7 +46,8 @@ export class BoardView {
     this.hover = null;
     this.lastCell = null;
     this.dragging = false;
-    this.paused = false;   // 换题不带上局的暂停态，否则新棋盘永远不吃输入
+    // 换题不带上局的暂停态：外壳在 start() 里把状态归零（js/core/pause.js 的 resetAt），
+    // 否则新棋盘永远不吃输入。
     this.resetWin();
     this.layout();
     this.start();
@@ -89,7 +92,7 @@ export class BoardView {
 
   down(ev) {
     const e = this.engine;
-    if (!e || !this.view || this.paused) return;
+    if (!e || !this.view || this.gate()) return;
     const c = this.cellAt(ev);
     if (!c) return;
     ev.preventDefault();
@@ -109,7 +112,7 @@ export class BoardView {
     const c = this.cellAt(ev);
     this.hover = c;
     this.view.hover = c;
-    if (!this.dragging || this.paused) return;   // 暂停中只跟光标，不动引擎
+    if (!this.dragging || this.gate()) return;   // 暂停中只跟光标，不动引擎
     if (this.lastCell && this.lastCell.x === c.x && this.lastCell.y === c.y) return;
     ev.preventDefault();
     this.lastCell = c;
@@ -119,10 +122,23 @@ export class BoardView {
 
   up() {
     if (!this.dragging) return;
+    if (this.gate()) {
+      // 暂停中：这一笔已经在暂停那一刻收掉了（相当于抬手），不许再落到引擎上。
+      this.dragging = false;
+      this.lastCell = null;
+      return;
+    }
+    this.endStroke();
+  }
+
+  // 在飞的那一笔收掉：拖到一半松手（或暂停）时的收尾动作，交给引擎收尾。
+  endStroke() {
+    if (!this.dragging) return false;
     this.dragging = false;
     this.lastCell = null;
     const changed = this.engine && this.engine.up();
     this.afterInput(!!changed);
+    return true;
   }
 
   afterInput(changed) {
@@ -147,7 +163,7 @@ export class BoardView {
   }
 
   press(cursor = false) {
-    if (!this.engine || !this.view || this.paused) return;
+    if (!this.engine || !this.view || this.gate()) return;
     const c = cursor ? (this.hover || { x: 0, y: 0 }) : this.hover;
     if (!c) return;
     this.view.hover = c;
@@ -177,12 +193,13 @@ export class BoardView {
   // 暂停 = 不吃输入 + 停掉 rAF（render 一帧都不再进，动画与 HUD 一起冻住）。
   // 结算动画正在跑时只置输入闸门，不停帧 —— 否则那枚章永远盖不完。
   pause() {
-    this.paused = true;
+    // 在飞的那一笔在闸门关之前收掉（相当于抬手）：留着它，抬手时那一笔的收尾
+    // （数链的连线、数间的矩形）会落在暂停之后 —— 那就是暂停期间改盘面。
+    this.endStroke();
     if (!this.winAt) this.stop();
   }
 
   resume() {
-    this.paused = false;
     if (this.engine && !this.running) this.start();
   }
 

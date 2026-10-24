@@ -26,13 +26,29 @@ js/main.js          装配 + window.nikoli（无头复验的唯一入口）
 js/ui/app.js        路由、计时、记分、评星、键盘 —— 设备无关的输入都在这层收敛
 js/ui/board_view.js 格坐标 ↔ 画布像素的唯一换算处；指针事件 → 整数格
 js/puzzles/*.js     每道玩法一个文件：题面、状态机、渲染
-js/core/            rng / storage / audio / paper / theme
+js/core/            rng / storage / audio / paper / theme / pause（暂停契约）
 ```
 
 `BoardView` 只认 `engine.board = {cols, rows, margin}` 和 `down/move/up/draw`。
 所以"数织能拖拽、孔明棋只能两点成一段"这种差别留在引擎里，外壳一行都不用改。
 `margin` 用格做单位（数织左侧要留 clue 的宽度），于是 `layout()` 不需要知道任何
 玩法的形状。
+
+## 暂停是外壳的事，引擎不许知道
+
+暂停要同时立住三件事：表停、输入闸门关、恢复接着走。三件事都住在外壳，所以它们住在
+一个**不碰 DOM / window 的纯模块**里（`js/core/pause.js`）—— 这样 node 里能直接 import，
+才排得出 `test/pause.test.mjs` 那 8 条用例（手摇假时钟，不等真实时间）。
+
+闸门只有一处定义 `lockedAt()`（`js/core/pause.js:45`），两层动作问同一把锁：外壳的
+撤销/重做/提示/重来（`js/ui/app.js:240`），画布的按下/拖动/抬手/键盘落子
+（`js/ui/board_view.js:95`）。引擎契约里没有"暂停"这一项 —— 暂停只是"暂时不许调它"，
+不是引擎要实现的一种状态。
+
+"暂停期间不改盘面"这条有一个容易漏的角落：**拖到一半**。抬手才落子的玩法（数链的连线、
+数间的矩形）把收尾放在 `up()` 里，而抬手可能发生在暂停之后 —— 那一笔就会落在暂停期间。
+所以暂停的那一刻先把在飞的那一笔收掉（相当于抬手，`js/ui/board_view.js:135`），
+闸门随后才关；抬手那一层自己也问一次闸门（`js/ui/board_view.js:125`），两处互为兜底。
 
 ## 口径：`moves` 是账，不是盘面
 

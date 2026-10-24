@@ -10,7 +10,7 @@ WebAudio 合成音效，localStorage 存进度。位图（应用图标、纸纹�
 
 ```bash
 node tools/serve.mjs        # → http://127.0.0.1:5173/，然后点开任一档位
-node --test test/*.test.mjs # 271 项引擎单测（不开浏览器）
+node --test test/*.test.mjs # 279 项引擎单测（不开浏览器）
 npm run art                 # 重画 assets/ 全套位图（需 python3 + Pillow）
 bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 ```
@@ -18,7 +18,7 @@ bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 > 直接双击 `index.html` 不行：裸 ES Module 在 `file://` 下会被 CORS 挡掉，必须有 http://。
 
 本文的写法是**每条承诺都点名一道真会红的命令**，并在最后列出「不承诺」的那一部分。
-所有整数都是本轮（2026-09-30，本机 node v26.8.1）复跑出来的读数，不是估计；
+所有整数都是本轮（2026-10-25，本机 node v26.8.1）复跑出来的读数，不是估计；
 能被破坏试验推翻的，都记在〈上面那些"会红"是怎么验出来的〉那张表里。
 
 ## 十一种玩法
@@ -56,7 +56,7 @@ bash tools/verify.sh        # 单测 + 无头 Chrome 真指针通关，一把梭
 左列是屏上或本文说出口的话，中列是**本轮真跑过**的命令，右列是它到底在比什么。
 用例数由 `node --test --test-reporter=spec` 打印（`ℹ tests / pass / fail`），
 无头那条由 `tools/verify.sh:118` 打印 `rows: N fail: … errors: …`。
-`npm test` 现在就是 `tools/verify.sh` 里那条显式 glob（本机 271 项，与 README 表里的数同源）：
+`npm test` 现在就是 `tools/verify.sh` 里那条显式 glob（本机 279 项，与 README 表里的数同源）：
 以前它写的是目录参数 `node --test test/`，而 `tools/verify.sh` 的头注记录了那个写法在 CI 的
 node 22 runner 上「只报出一条名为 test 的失败，十个文件一个没跑」——本机 node 26 察觉不到这件事，
 所以总闸与 CI 那条腿不能再是两种写法。
@@ -67,7 +67,7 @@ node 22 runner 上「只报出一条名为 test 的失败，十个文件一个�
 | 唯一解不是生成器自己说的 | `node --test test/{nurikabe,tents,akabane,hitori,slant,shikaku,dominosa,numberlink}.test.mjs` | 每题都交给"带节点预算、数到第二种就早停"的计数器重数一遍；`capped` 的盘必须**丢掉**，不许当成唯一 | 每档 40 颗 seed 的 fuzz 用例全绿；数邻 `丢题 0`、`cappedTries 合计 0` |
 | 预算烧完要说"不知道"，不能说"无解"或"唯一" | `node --test test/pegsolitaire.test.mjs`、`…/shikaku.test.mjs`、`…/nurikabe.test.mjs`、`…/akabane.test.mjs` | 37 孔法式满盘缺中心给 80 万节点也烧不完 → `capped === true`；数间计数器不许把半截计数洗成证明；数墙/黑白"没数完"与"只有一种解"分开 | 破坏试验刀 5 实测：把 `capped: !exhausted` 改成 `capped: false`，`预算烧完要如实报 capped` 立刻红 |
 | 25 孔小十字"满盘缺中心"是**可证**无解 | `node --test test/pegsolitaire.test.mjs` | 两套实现都跑到穷尽（`capped === false`），且 `nodes === dead`：走过的每个局面都被证明是死局 | 手写常量 `assert.equal(stats.nodes, 214749)`（`test/pegsolitaire.test.mjs:274`）本轮复现 |
-| 同一颗 seed 在任何设备上是同一道题 | `node --test test/*.test.mjs`（11 个套件各有一条） | 同 seed 两次 `generate` 逐字节相等、spec 过 `JSON` 往返不变味；换 seed 才换题（40 颗 seed 要交出 40 张不同的脸） | 全部 13 个套件 `fail: 0`；`faces.size == 40` 这类"不许重复"的等式在黑白/隔离/数墙/帐篷里各钉一份 |
+| 同一颗 seed 在任何设备上是同一道题 | `node --test test/*.test.mjs`（11 个套件各有一条） | 同 seed 两次 `generate` 逐字节相等、spec 过 `JSON` 往返不变味；换 seed 才换题（40 颗 seed 要交出 40 张不同的脸） | 全部 15 个套件 `fail: 0`；`faces.size == 40` 这类"不许重复"的等式在黑白/隔离/数墙/帐篷里各钉一份 |
 | 引擎不知道有屏幕，也不读时钟 | `node --test test/{akabane,dominosa,hitori,nurikabe,slant,tents}.test.mjs` | 源码级扫描：模块文本里出现 `Math.random` / `new Date` / `document.` / `localStorage` / `window.` 就红 | 本轮**只覆盖 6/11 款**（见「不承诺」）；破坏试验刀 1 实测：往 `tents.js` 塞一句没人调用的 `Math.random()`，纯度用例单独红 |
 | 难度是量出来的，不是形容词 | `node --test test/slant.test.mjs`、`…/shikaku.test.mjs` | 五寸钉按"推导收敛遍数"排档：越大的盘遍数越多，档位带互不重叠；数间三档的分数带也互不重叠，且与档位表说的是同一件事 | `档位要分得开` / `难度是量出来的` 两条用例绿；尺子的来历见 `docs/DESIGN.md`「难度锚点要先量它会不会动」 |
 | 提示真的落子，而且一次只走一小步 | `node --test test/*.test.mjs`、`@无头` | 一路 `hint()` 必须能点到通关；不许一次涂满全盘；不许倒退款；给的那一步必须落在真解上（数墙/隔离/数邻各有"越轨必须为 0"的等式） | 数邻 fuzz 打印 `越轨 0`（本轮三档各 40 张）；无头 92 行里 11 条"一路点到通关"全绿 |
@@ -78,8 +78,9 @@ node 22 runner 上「只报出一条名为 test 的失败，十个文件一个�
 | 门面报的玩法数不许还写着上一次那个数 | `node --test test/registry.test.mjs` | `README.md` / `package.json` / `index.html` 里凡「N种玩法 / N种纸笔推理谜题」的汉字数必须等于 `KINDS.length`，且 `index.html` 的 `#/…>` 静态占位必须等于 `/11` | 破坏试验刀 8（把占位改回 `/10`）、刀 9（把本文标题里那个数词抹掉一个字，让 README 报旧数）各红一次；这条还带防空转：找到的报数点少于 3 处就红 |
 | 一个语法错的引擎文件不许上线 | CI 的「语法自检」步（`.github/workflows/ci.yml` 里 `- name: 语法自检`，一步就是 `run: npm run check`），本地同一条 `npm run check` | `git ls-files '*.js' '*.mjs'` 逐个 `node --check`，文件数由这条 leg 自己印 | 本轮 `npm run check` → `OK 42 files`（含 `test/storage.test.mjs`）。以前 CI 那一步自己抄了一份 `git ls-files | while read` 循环，与 leg 逐字同集合但两份独立漂；上一轮这份文档写的还是 **37 个文件**（磁盘已经 39 了），现在数从命令里出来，文档只抄读数 |
 | 加一道玩法有清单可抄 | `node --test test/registry.test.mjs` + `js/puzzles/CONTRACT.md` | 契约字段齐备（`generate/create/down/move/up/undo/redo/canUndo/canRedo/hint/solved/stats/draw` + 可选 `celebrate`）、`par` 在引擎与题面两处必须是同一个数 | 同上 `tests 7 / fail 0` |
+| 暂停是真暂停：表停、闸门关、帧停、恢复不丢 | `node --test test/pause.test.mjs` | 手摇假时钟 + 假 rAF 驱动**真的**外壳与棋盘视图：暂停期间表不走、落子/擦/提示/撤销/键盘一个都不落到引擎上、rAF 一帧都不进；恢复后恰好接着走，反复切三次仍然自洽 | 本轮 `tests 8 / fail 0`；破坏试验四刀各红一次（见「暂停」一节） |
 
-14 个 node 套件（13 个玩法/存档 + 文档腿）合起来本轮是 **271 条用例、0 失败**；浏览器层 **92 行、0 失败**，
+15 个 node 套件（13 个玩法/存档 + 文档腿 + 暂停腿）合起来本轮是 **279 条用例、0 失败**；浏览器层 **92 行、0 失败**，
 加在一起是 `bash tools/verify.sh` 交回的 `=== ALL GREEN ===`（退出码 0）。
 `tools/verify.sh:120` 还有一条防空跑：无头行数少于 20 就判失败 —— "跑完了但一条都没记上"不算过。
 
@@ -150,11 +151,44 @@ D4 一记（把带指认的引用搬到同一文件里不含那个名字的那�
 且前面借不到路径的形状）、D1 一记（把输入集的推导缩回"只挑仓根那一份"）。另加一记阳性对照：把 README
 搬进 `docs/` 之后腿仍然数得到三份文档 —— 这一记绿的比那五记红的更能说明它是跟着清单走，不是跟着仓根走。
 
-本轮读数（2026-10-22，本机一次 `node test/docs.test.mjs`）：4 份文档 · 23 条引用 · 12 条带指认 ·
+本轮读数（2026-10-22，本机一次 `node test/docs.test.mjs`）：4 份文档 · 44 条引用 · 23 条带指认 ·
 0 条续引 · 0 条跨仓 · 文档行号对账 15 条判据，`rows: 15 fail: 0`；同一轮 `npm test` 是 271 条用例全过。
 这六个数由这条腿自己逐处对账：文档里凡印着这些标签的地方都必须等于本轮实数，一处都没印同样要红
 （D10 抄写台账；三把只动文档的刀在带 `.git` 的副本上各红一次、点名对应标签，跑完树复原）。下面引的那次
 CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实读数，我没去改它。
+
+## 暂停：真停表、真挡输入、真接着走
+
+暂停键不是装饰。产品口径已经反转成「回合制谜题必须有真暂停」，这一节把它拆成四条
+可验的承诺，每条都点名一处代码、每条都有一道会红的命令。命令是
+`node --test test/pause.test.mjs`（8 条用例）：手摇假时钟（假 `performance.now`）与假 rAF，
+驱动**真的**外壳与**真的**棋盘视图 —— 真指针事件打到真引擎上，真按钮与真快捷键走真动作。
+全程不等真实时间，所以机器忙不会让这条腿变红。
+
+| 承诺 | 靠哪一处 | 本轮读数 |
+| --- | --- | --- |
+| **表停**：暂停期间不再吃墙上时间 | `elapsedOf()`（`js/core/pause.js:12`）在 `paused` 时直接给结算好的 `elapsed`；`pauseAt()`（`js/core/pause.js:15`）在暂停那一刻把已用时间结算进去 | 暂停期间走 5 秒假时间，`elapsedMs()` 一格不动；暂停那一刻结算进去的那份一秒都不丢 |
+| **闸门关**：会改盘面的动作一律不落到引擎上 | 闸门只有一处定义 `lockedAt()`（`js/core/pause.js:45`）：外壳的撤销/重做/提示/重来问它（`inputLocked()`，`js/ui/app.js:240`），画布的按下/拖动/抬手/键盘落子问同一把锁（`js/ui/board_view.js:95`） | 暂停期间落子/擦/提示/撤销/键盘全被拒：**引擎一个调用都没收到**（比「盘面没变」更严 —— 引擎被叫到却碰巧没改盘面，也算漏网） |
+| **帧也停**：暂停期间一帧都不推进 | `pause()`（`js/ui/board_view.js:195`）停掉 rAF | 暂停期间渲染一帧都没进，恢复后重新走 |
+| **恢复接着走**：不丢已用时间，也不重复累加 | `resumeAt()`（`js/core/pause.js:23`）把 `startedAt` 重开在恢复那一刻，引擎状态一个字节都不动 | 再走 500 毫秒，已用时间恰好 +500；反复暂停/恢复三次，三段暂停的时间都从表上摘掉 |
+
+**拖到一半按下暂停**那一笔怎么算：暂停的那一刻先把它收掉（相当于抬手），闸门随后才关。
+所以「暂停期间不改盘面」这条承诺里没有例外 —— 抬手的收尾落在暂停之前，暂停之后任何输入
+都不再落到引擎上（`endStroke()`，`js/ui/board_view.js:135`；抬手那一层自己也问闸门，
+`js/ui/board_view.js:125`）。
+
+暂停是**外壳**的事，棋盘内部的一切属于引擎：引擎契约里没有「暂停」这一项
+（`js/puzzles/CONTRACT.md`），暂停契约单独住在 `js/core/pause.js` —— 一个不碰 DOM / window
+的纯模块，所以 node 里能直接 import，也才排得出上面这 8 条用例。
+
+本轮这一腿的破坏试验四刀，都跑在仓外副本上（真仓一个字没改，跑完树复原）：
+
+| 破坏 | 红的用例（`test/pause.test.mjs`） |
+| --- | --- |
+| 暂停时不结算已用时间（`pauseAt()` 里那行删掉） | 3 条红：表停 / 恢复接着走 / 反复三次 |
+| `inputLocked()` 恒为 false | 1 条红：输入全被拒 |
+| 暂停时不收掉在飞的那一笔 | 1 条红：拖到一半按下暂停 |
+| 画布的抬手不再问闸门 | 1 条红：闸门关着时抬手 |
 
 ## 怎么跑：`package.json` 的四条 scripts 逐条核对
 
@@ -163,11 +197,11 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 | script | 命令 | 本轮状态 |
 | --- | --- | --- |
 | `start` | `node tools/serve.mjs` | 可跑；默认端口 5173（`tools/serve.mjs:9` 的 `PORT`），只绑 `127.0.0.1`，路径带 `..` 逃逸一律 403 |
-| `test` | `node --test test/` | 本机 node v26.8.1 → `tests 259`（改前）/ 现在 271 全绿。**但这是最不该用的一条**：node 22（CI 那台）拿到目录参数时一个文件都找不到，只报一条名为 `test` 的失败，看起来像"测试跑了没通过"，其实一道都没跑（`docs/DESIGN.md` 记了这个坑）。写文档、发命令请一律用 `test/*.test.mjs` 展开形式 |
-| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f" \|\| exit 1; done` + 末尾把 `git ls-files` 的条数一起印出来 | 本轮 `OK 42 files`（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"；那个 39 是它自己数的，文档只是抄） |
+| `test` | `node --test test/` | 本机 node v26.8.1 → `tests 259`（改前）/ 现在 279 全绿。**但这是最不该用的一条**：node 22（CI 那台）拿到目录参数时一个文件都找不到，只报一条名为 `test` 的失败，看起来像"测试跑了没通过"，其实一道都没跑（`docs/DESIGN.md` 记了这个坑）。写文档、发命令请一律用 `test/*.test.mjs` 展开形式 |
+| `check` | `for f in $(git ls-files '*.js' '*.mjs'); do node --check "$f" \|\| exit 1; done` + 末尾把 `git ls-files` 的条数一起印出来 | 本轮 `OK 44 files`（依赖 `git ls-files`，在没有 `.git` 的副本里会静默扫到 0 个文件 —— 所以它测的是"这个 checkout 里的源码"；那个 39 是它自己数的，文档只是抄） |
 | `verify` | `bash tools/verify.sh` | `=== ALL GREEN ===`，退出码 0（本文所有读数都来自这条） |
 | `deploy-set` | `node tools/deploy-set.mjs` | 绿：对拷出来的产物提要求（见「上线的到底是哪一批文件」一节） |
-| `deploy-set:selftest` | `node tools/deploy-set-selftest.mjs` | 绿：9 刀逐类打红且点名 + 1 条阴性对照 |
+| `deploy-set:selftest` | `node tools/deploy-set-selftest.mjs` | 绿：13 刀逐类打红且点名（X10 是阴性对照，照旧不发力；X13 本仓没有内联 data URI 位图，SKIP） |
 
 另有两条不在 `package.json` 里、但 CI 真的在用的入口：
 
@@ -182,7 +216,7 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 
 ## 门禁清单：本轮逐条复跑
 
-`node --test --test-reporter=spec test/*.test.mjs` → **`tests 271 / pass 271 / fail 0`**。
+`node --test --test-reporter=spec test/*.test.mjs` → **`tests 279 / pass 279 / fail 0`**。
 每个套件自己跑一遍的分账（本轮实测）：
 
 | 套件 | 用例 | 套件 | 用例 |
@@ -193,7 +227,8 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 | `lightsout` | 20 | `slant` | 25 |
 | `nonogram` | 23 | `storage` | 10（本轮新增） |
 | `numberlink` | 26 | `tents` | 22（本轮 +1） |
-| `nurikabe` | 23 | **合计** | **270** |
+| `nurikabe` | 23 | `pause` | 8（本轮新增） |
+| | | **合计** | **278** |
 
 浏览器层 `rows: 92`。`tools/playtest.mjs` 里有 23 个 `ok()` 落点（`37:` 那个是定义，不算），
 92 行是这么来的：
@@ -207,10 +242,12 @@ CI run 打的是 `checks=9`——那是 D10 落地**之前**那一跑的真实�
 | | | **92 行** |
 
 关于计时：无头层**没有任何墙钟断言**（`tools/playtest.mjs` 里 `Date.now` / `performance.now`
-出现 0 次），所以机器忙不会让这条腿变红。单测里剩下的毫秒只有"保险丝"一种用途 ——
+出现 0 次），所以机器忙不会让这条腿变红。读**真**墙钟的只剩"保险丝"一种用途 ——
 例如黑白的 `BUDGET = {6: 12000, 8: 30000, 10: 60000}`（`test/akabane.test.mjs:394`）、
 数邻的 `FUSE = {4: 4000, 6: 8000, 8: 40000}`（`test/dominosa.test.mjs:695`）——
 它只咬"算法塌成指数"，**不承诺手感**，可证的上界写在档位自己的 tries/audit 里。
+暂停那条腿读的是**手摇假时钟**（`test/pause.test.mjs` 注入假的 `performance.now` 与假 rAF，
+时间只由用例往前拨），所以它既不等真实时间，也不会因为机器忙而变红。
 
 ## 引擎契约
 
@@ -247,8 +284,8 @@ js/ui/board_view.js     格坐标 ↔ 画布像素的唯一换算处；指针事
 js/puzzles/*.js         十一款引擎：题面、状态机、渲染、求解器
 js/puzzles/registry.js  玩法注册表 + 每日排题（唯一的排题处）
 js/puzzles/CONTRACT.md  引擎契约
-js/core/                rng（hashSeed/mulberry32/todayKey）、storage、audio、paper、theme
-test/                   14 个 node 套件，271 条用例
+js/core/                rng（hashSeed/mulberry32/todayKey）、storage、audio、paper、theme、pause（暂停契约）
+test/                   15 个 node 套件，279 条用例
 tools/serve.mjs         只绑 127.0.0.1 的静态服（默认 :5173）
 tools/playtest.mjs      CDP 真指针复验（23 个 ok() 落点 → 92 行）
 tools/verify.sh         单测 → 静态服 → 无头通关 → 截图，一把梭
@@ -284,8 +321,8 @@ tools/deploy-set-selftest.mjs  部署集闸的阴性自证（每一类断言当�
 - **仓外探针不是闸**。`_tmp-dominosa-readings.mjs` 那种工作区根脚本给的是"本轮读数"，
   换一颗 seed 串、换一台机器都可能变；它不进 CI，也不会让任何东西变红。本文引用它时
   一律写清"仓外探针，无闸守着"。
-- **墙钟只当保险丝**。92 行与 271 条用例里唯一涉及毫秒的判定就是各家那几条 `BUDGET`/`FUSE`
-  上界；本文不出现"多少毫秒能玩"的承诺。上一版在这里写过 `p50/p95` 的具体毫秒，本轮删了 ——
+- **墙钟只当保险丝**。92 行与 279 条用例里唯一读**真**墙钟的判定就是各家那几条 `BUDGET`/`FUSE`
+  上界（暂停那条腿读的是手摇假时钟，不吃墙上时间）；本文不出现"多少毫秒能玩"的承诺。上一版在这里写过 `p50/p95` 的具体毫秒，本轮删了 ——
   同一个探针在同一台机器上两轮给的数字就差了 15%（8×9 档 8.22 → 7.04），它测的是机器不是算法。
 - **"每档 40 颗 seed 全绿"是对那 40 颗的承诺**，不是对 seed 空间的承诺。生成器的拒绝原因
   分布（挖不出唯一、数不完、门槛松掉 `degraded`）按档在测试与 `spec` 字段里可查，但本文不给
@@ -325,7 +362,7 @@ MIT，见 [`LICENSE`](LICENSE)。
   内联成 base64 的图标先解码再读同一段。后一条不是可选项：图标可能住在清单里而不是盘上的 `.png`
   （有的仓另有一条"零二进制文件"的承诺，那条只约束"有没有 .png 这个文件"）；如果 P 段只筛文件名，
   声明写 512 而真图 192 就一路放行。
-- **钉住两个数**：R 段实际检查的路径条数（`67`）与这一次跑的断言条数（`85`），两个数
+- **钉住两个数**：R 段实际检查的路径条数（`79`）与这一次跑的断言条数（`101`），两个数
   都钉在 `tools/deploy-set.mjs` 顶部的那对常量里。没改页面却掉了，说明解析断了；删掉一张图标会同时
   少一条 R10 与那张的 P1/P2，所以两个数一起钉，断言条数能漂就是闸在缩水的信号。这一节故意只写数值、
   不写那对常量的名字，也不写别仓文档闸的编号：有的仓的文档闸会拿"文档里出现过的同名标识号"回数它
@@ -336,7 +373,7 @@ MIT，见 [`LICENSE`](LICENSE)。
 各下一刀（X1 清单不收位图目录 / X2 模块边改名 / X3 CSS 写绝对路径 / X4 `start_url` 绝对 /
 X5 删光 >=512 图标 / X6 少一个必填字段 / X7 声明尺寸与真图不符 / X8 workflow 不调脚本 /
 X9 CI 不跑闸 / X10 是阴性对照——往入口 JS 追加一行只写在注释里的假路径，闸必须仍然绿、条数仍然
-`67`、断言仍然 `85`；X11 og:image 退回相对路径 / X12 og:image 的前缀指向别的 slug /
+`79`、断言仍然 `101`；X11 og:image 退回相对路径 / X12 og:image 的前缀指向别的 slug /
 X13 内联位图谎报尺寸——只在有靶子时下：X11/X12 要页面上那句 og:image，X13 要清单里真有一段 base64
 图标，没有就打印 SKIP；反过来 X1 没有位图目录可砍时改砍 css，P 段一位都不核时台架直接报靶子不够），
 要求每一刀都让闸**点名**变红。靶子从 `DEPLOY_SET_DUMP=1`
