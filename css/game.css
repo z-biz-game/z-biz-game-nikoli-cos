@@ -263,3 +263,11 @@ input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* org 003 §4 reduced-motion 全域兜底：系统偏好"减少动效"时停掉所有动画 / 过渡 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
